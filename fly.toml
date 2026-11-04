@@ -1,0 +1,37 @@
+# Fly.io config for the Imbalance Fixer app (existing app: fixyourdataset).
+# See DEPLOY_FLY.md for how to update it without changing the live service settings.
+app = "fixyourdataset"         # URL is https://fixyourdataset.fly.dev
+primary_region = "fra"        # Frankfurt. Pick one near your audience: fra, ams, lhr, iad, ...
+
+[build]
+  dockerfile = "Dockerfile"
+
+[mounts]
+  source = "data"             # persistent volume: the usage log survives deploys/restarts
+  destination = "/data"
+
+[http_service]
+  internal_port = 7860        # the port the app listens on (matches Dockerfile ENV PORT)
+  force_https = true          # free HTTPS
+  auto_stop_machines = false  # always on: the machine never sleeps, so the page loads without a cold start
+  auto_start_machines = true
+  min_machines_running = 1    # keep one machine running at all times
+
+  [http_service.http_options]
+    idle_timeout = 900        # seconds; matches the live service, keeps long ML requests from being cut off
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 12           # ML requests are CPU-heavy; keep concurrency modest
+    soft_limit = 8
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "get"
+    path = "/healthz"         # the health endpoint added to server.py
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"              # comfortable for pandas / scikit-learn / ERF-CSRBoost

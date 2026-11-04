@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.DS_Store
+data_local/
+
+# local environments
+.venv/
+venv/
+
+# research runner: local outputs and datasets a reader downloads (third-party, not redistributed)
+research/outputs/
+research/[0-9][0-9]_*/

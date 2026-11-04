@@ -1,0 +1,110 @@
+ERF-CSRBoost and FixYourDataset: licence terms
+
+This repository uses two licences for different kinds of material, plus a list of
+material that is not covered by either.
+
+1. Original source code: MIT License (Section A).
+2. Original documentation, figures and result files: Creative Commons Attribution 4.0
+   International, CC BY 4.0 (Section B).
+3. Third-party material (datasets, the published CSRBoost paper, libraries): not covered by
+   Section A or B; it keeps its own terms (Section C).
+
+If a file mixes code and prose, the MIT terms apply to the code and the CC BY 4.0 terms apply
+to the prose.
+
+No licence here adds a compulsory citation term or any other condition beyond the text of the
+standard licence it names. A request to cite the work is in README.md and CITATION.cff and is a
+request only.
+
+
+Scope: which files fall under which licence
+
+Section A (MIT) covers the source code written by the author:
+  - backend/ (server, engine, models, tests, sample generator)
+  - frontend/ (index.html and the JavaScript test files)
+  - Dockerfile, fly.toml, .dockerignore, requirements.txt
+  - research/scripts/ (the research runner scripts)
+  - configuration files: .gitignore, .gitattributes, research/.gitignore and
+    research/MANIFEST.sha256 (the list of SHA-256 values for the stored research files)
+
+Section B (CC BY 4.0) covers the original documentation, figures and result files:
+  - README.md, DEPLOY_FLY.md, THIRD_PARTY_NOTICES.md
+  - docs/
+  - samples/README.md
+  - research/README.md
+  - the metric-only result files in research/results/ (per-fold and per-dataset scores
+    produced by the author's runs; they contain no source data)
+
+Not covered by Section A or B (Section C):
+  - samples/*.csv and any dataset file a reader downloads for research/
+  - the CSRBoost paper
+  - third-party libraries
+
+CITATION.cff is metadata about this repository; it may be reused freely.
+
+
+Section A. MIT License (source code)
+
+Copyright (c) 2026 Sherwan Ali
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+Section B. Documentation, figures and result files (CC BY 4.0)
+
+Copyright (c) 2026 Sherwan Ali
+
+The files listed under Section B above are licensed under the Creative Commons Attribution 4.0
+International License. The full legal code is in the file LICENSE-CC-BY-4.0.txt at the root of
+this repository. That file is an unmodified copy of the official text, it contains the complete
+terms and it governs. The summary below is for convenience only. The licence can also be read
+at https://creativecommons.org/licenses/by/4.0/
+
+You are free to:
+  Share: copy and redistribute the material in any medium or format.
+  Adapt: remix, transform, and build upon the material for any purpose, even commercially.
+
+Under the following terms:
+  Attribution: you must give appropriate credit, provide a link to the licence, and indicate
+  if changes were made. You may do so in any reasonable manner, but not in any way that
+  suggests the licensor endorses you or your use.
+  No additional restrictions: you may not apply legal terms or technological measures that
+  legally restrict others from doing anything the licence permits.
+
+
+Section C. Third-party material (not covered by Section A or B)
+
+The following keep their own terms. Details, creators, DOIs and the changes made to the
+bundled samples are in THIRD_PARTY_NOTICES.md.
+
+  - The four sample datasets in samples/ are derived from datasets of the UCI Machine Learning
+    Repository, which the repository lists under CC BY 4.0. They were modified (encoding,
+    subsampling, relabelling) as described in THIRD_PARTY_NOTICES.md and samples/README.md.
+    Credit and the licence belong to the original creators.
+
+  - Dataset files used by the research runner are not part of this repository. They come from
+    the UCI Machine Learning Repository and the KEEL dataset repository and remain under the
+    terms of those providers. A reader downloads them from the original source.
+
+  - The CSRBoost paper (Yadav, Joshi, Mulye, Asari, Udmale and Bhole, IEEE Access, 2025,
+    DOI 10.1109/ACCESS.2025.3616207) is the copyright of its authors and publisher and is not
+    redistributed here.
+
+  - The libraries the code depends on (pandas, numpy, scikit-learn, imbalanced-learn, scipy,
+    openpyxl, xlrd) are installed separately from PyPI and keep their own licences.

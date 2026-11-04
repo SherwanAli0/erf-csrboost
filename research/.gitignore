@@ -1,0 +1,3 @@
+# Datasets a reader downloads (third-party, not redistributed) and the runner's own outputs
+outputs/
+[0-9][0-9]_*/

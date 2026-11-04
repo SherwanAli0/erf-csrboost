@@ -1,0 +1,15 @@
+# Files whose SHA-256 is published in this repository must keep the same bytes in every checkout.
+# Without these rules a Windows checkout with core.autocrlf=true converts text files to CRLF and
+# the published hashes (and `sha256sum -c research/MANIFEST.sha256`) stop matching.
+
+# Hash list: force LF so that `sha256sum -c MANIFEST.sha256` parses it on every platform.
+research/MANIFEST.sha256 text eol=lf
+
+# Stored research runner and result files: kept byte for byte as written (they use CRLF).
+research/scripts/*.py -text
+research/**/*.csv -text
+
+# Bundled samples and application files whose hashes are listed in the documentation (LF).
+samples/*.csv text eol=lf
+backend/engine.py text eol=lf
+backend/models/*.py text eol=lf

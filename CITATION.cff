@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+title: "ERF-CSRBoost and FixYourDataset"
+message: "If you use this software, please cite it using these metadata, and also cite the CSRBoost paper that it extends."
+type: software
+authors:
+  - family-names: Ali
+    given-names: Sherwan
+license:
+  - MIT
+  - CC-BY-4.0
+url: "https://fixyourdataset.fly.dev"
+date-released: 2026-11-04
+abstract: "An experimental ensemble extension of CSRBoost (an unpublished research prototype), with a web application for exploring class imbalance and comparing model behavior. Code is MIT licensed; documentation and result files are CC BY 4.0."
+keywords:
+  - class imbalance
+  - ensemble learning
+  - random forest
+  - SMOTE
+  - reproducibility
+references:
+  - type: article
+    title: "CSRBoost: Clustered Sampling With Resampling Boosting for Imbalanced Dataset Pattern Classification"
+    authors:
+      - family-names: Yadav
+        given-names: Seema
+      - family-names: Joshi
+        given-names: Dhruvanshu
+      - family-names: Mulye
+        given-names: Soham
+      - family-names: Asari
+        given-names: Labib
+      - family-names: Udmale
+        given-names: Sandeep S.
+      - family-names: Bhole
+        given-names: Girish P.
+    journal: "IEEE Access"
+    volume: 13
+    start: 175078
+    end: 175093
+    year: 2025
+    doi: "10.1109/ACCESS.2025.3616207"

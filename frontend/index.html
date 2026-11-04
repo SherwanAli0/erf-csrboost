@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fix Your Dataset - catch the leakage in your ML data</title>
+<style>
+  :root{
+    /* audit-lab palette: navy = trust/research, teal = action, amber/red = warnings */
+    --bg:#F7F8FA; --card:#FFFFFF; --line:#D9DEE7; --ink:#111827; --mut:#4B5563;
+    --navy:#1E3A5F; --navyl:#EAF0F6;
+    --em:#0F766E; --emd:#0B5F52; --eml:#E6F1EF; --red:#B91C1C; --redl:#FBECEC;
+    --amber:#B45309; --amberl:#FBF3E7; --good:#15803D; --grey:#CBD5E1;
+    --code-bg:#0B1220; --code-text:#E5E7EB;
+    --s1:8px; --s2:16px; --s3:24px; --s4:32px; --s5:40px; --s6:56px;
+    --mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+    /* soft layered elevation so surfaces have hierarchy (not one flat plane) */
+    --shadow-sm:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
+    --shadow-md:0 4px 12px -2px rgba(16,24,40,.08), 0 2px 6px -2px rgba(16,24,40,.05);
+    --shadow-lg:0 14px 32px -8px rgba(16,24,40,.14), 0 4px 10px -4px rgba(16,24,40,.06);
+    color-scheme:light dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+  /* visible keyboard focus everywhere (WCAG 2.2) */
+  :focus-visible{outline:2px solid var(--navy);outline-offset:2px;border-radius:6px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums slashed-zero}
+  .wrap{max-width:820px;margin:0 auto;padding:0 var(--s3)}
+  h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .mut{color:var(--mut)}
+  button{font:inherit}
+  .link{color:var(--em);cursor:pointer;font-weight:600;text-decoration:underline;text-underline-offset:2px}
+  button.link{background:none;border:0;padding:0;font:inherit}
+  .link:hover{color:var(--emd)}
+
+  /* top bar */
+  .top{border-bottom:1px solid var(--line);background:var(--card)}
+  .top .wrap{display:flex;align-items:center;height:56px;gap:var(--s2)}
+  .brand{font-weight:700;letter-spacing:-.02em;color:var(--navy)}
+  .brand .dot{color:var(--em)}
+  .top .right{margin-left:auto}
+  .startover{background:none;border:1px solid var(--line);border-radius:8px;padding:7px 13px;
+    font-size:.85rem;font-weight:600;cursor:pointer;color:var(--ink)}
+  .startover:hover{border-color:var(--em)}
+
+  /* screens */
+  .screen{display:none;padding:var(--s6) 0}
+  .screen.active{display:block;animation:fade .3s ease-out}
+  /* one restrained accent wash behind the hero */
+  #screen-welcome{background:radial-gradient(1100px 520px at 82% -12%,rgba(15,118,110,.07),transparent 60%)}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .kicker{color:var(--navy);font-weight:700;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase}
+  .screen h1{font-size:2.1rem;margin:var(--s1) 0 var(--s1);line-height:1.15}
+  .lead{color:var(--mut);font-size:1.1rem;max-width:600px}
+  .de{color:var(--mut);font-size:.9rem;margin-top:6px}
+
+  /* split hero */
+  .hero2{display:grid;grid-template-columns:1.15fr .85fr;gap:var(--s4);align-items:center;margin-top:var(--s2)}
+  @media(max-width:760px){.hero2{grid-template-columns:1fr;gap:var(--s3)}}
+  .heroL h1{font-size:clamp(2.1rem,1.4rem + 2.6vw,3.2rem);font-weight:680;letter-spacing:-.025em;
+    line-height:1.06;margin:var(--s1) 0 var(--s2);color:var(--ink)}
+  .herosub{color:var(--mut);font-size:1.02rem;line-height:1.55;max-width:33em;margin:0 0 var(--s3)}
+  .ctas{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center}
+  .ctas .primary{margin-top:0}
+  .ghost{background:none;border:1px solid var(--line);color:var(--navy);border-radius:9px;
+    padding:12px 20px;font-weight:650;font-size:1rem;cursor:pointer;white-space:nowrap;
+    transition:transform .18s ease,border-color .18s ease,background .18s ease}
+  .ghost:hover{border-color:var(--navy);background:var(--navyl);transform:translateY(-1px)}
+  .thesisstrip{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:var(--s3);font-size:.82rem;color:var(--mut)}
+  .thesisstrip b{color:var(--navy);font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .thesisstrip .arw{color:var(--grey)}
+  /* leakage-detective preview card */
+  .preview{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:var(--s3);
+    box-shadow:0 10px 30px rgba(17,24,39,.06)}
+  .pvtag{font-size:.66rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);margin-bottom:12px}
+  .pvtrap{background:var(--redl);border-left:4px solid var(--red);color:#7a1414;border-radius:8px;
+    padding:8px 12px;font-weight:650;font-size:.85rem;margin-bottom:14px}
+  .pvrows{display:flex;flex-direction:column;gap:8px}
+  .pvrow{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:8px;border:1px solid var(--line)}
+  .pvrow span{font-size:.85rem;color:var(--mut)} .pvrow b{font-family:var(--mono);font-size:1.5rem;line-height:1}
+  .pvrow.leaky{border-top:3px solid var(--red)} .pvrow.leaky b{color:var(--red)}
+  .pvrow.honest{border-top:3px solid var(--em)} .pvrow.honest b{color:var(--em)}
+  .pvlift{text-align:center;margin-top:12px;font-family:var(--mono);font-weight:700;color:var(--red);font-size:.82rem}
+  .pvcap{color:var(--mut);font-size:.78rem;margin-top:10px;text-align:center}
+  /* what it checks */
+  .checks{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2);margin-top:var(--s4)}
+  @media(max-width:760px){.checks{grid-template-columns:1fr 1fr}}
+  .chk{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:var(--s2)}
+  .chk b{display:block;color:var(--navy);font-size:.9rem;margin-bottom:4px} .chk span{color:var(--mut);font-size:.8rem}
+  .privacy{color:var(--mut);font-size:.78rem;margin-top:var(--s3)}
+  .foot{border-top:1px solid var(--line);margin-top:var(--s5);padding-top:var(--s3);color:var(--mut);font-size:.82rem}
+  .foot b{color:var(--navy)} .foot .de{margin-top:6px}
+  .footlinks{margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
+  .footlinks a{color:var(--em);font-weight:600;text-decoration:none}
+
+  /* dataset cards */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);margin-top:var(--s4)}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2);margin-top:var(--s2)}
+  @media(max-width:900px){.grid4{grid-template-columns:1fr 1fr}}
+  @media(max-width:540px){.grid4{grid-template-columns:1fr}}
+  .grid4 .dcard{flex-direction:column;align-items:flex-start;padding:var(--s2);gap:8px}
+  .catchip{font-size:.68rem;font-weight:750;letter-spacing:.09em;text-transform:uppercase;color:var(--em);
+    background:var(--eml);border-radius:999px;padding:3px 9px}
+  .dcard{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:var(--s3);
+    text-align:left;cursor:pointer;transition:.18s;display:flex;gap:14px;align-items:flex-start}
+  .dcard:hover{border-color:var(--em);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+  .dcard .ic{width:38px;height:38px;flex:none;border-radius:9px;display:inline-flex;align-items:center;
+    justify-content:center;background:rgba(15,118,110,.09);color:var(--em);transition:.18s}
+  .dcard .ic svg{width:21px;height:21px}
+  .dcard:hover .ic{background:var(--em);color:#fff}
+  .dcard b{font-size:1.05rem}
+  .dcard p{margin:4px 0 0;color:var(--mut);font-size:.88rem}
+  .dcard.own{border-style:dashed;border-color:#c9c6bf}
+  .dcard.own:hover{border-color:var(--em)}
+  .abstract{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--em);
+    border-radius:12px;padding:var(--s3);margin:var(--s3) 0 var(--s2);color:var(--mut);
+    font-size:.95rem;line-height:1.65;max-width:760px}
+  .abstract b{color:var(--ink)}
+  h2.choose{font-size:1.35rem;margin-top:var(--s4)}
+  .section{margin-top:var(--s4)}
+  .section .stitle{font-weight:750;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--em);margin-bottom:12px}
+  .foldchoose{display:none;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:var(--s3);margin-top:var(--s3)}
+  .foldchoose.show{display:block;animation:fade .3s ease-out}
+  .foldchoose h3{font-size:1.05rem}
+  .fc-explain{color:var(--mut);font-size:.92rem;margin:8px 0 var(--s3);max-width:640px}
+  .fc-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
+  @media(max-width:600px){.fc-opts{grid-template-columns:1fr}}
+  .fc-opt{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:16px;text-align:center;transition:.15s}
+  .fc-opt:hover{border-color:var(--em);transform:translateY(-2px);box-shadow:0 6px 20px rgba(14,122,95,.08)}
+  .fc-opt b{display:block;font-size:1rem}
+  .fc-opt span{display:block;font-family:var(--mono);color:var(--em);font-weight:700;font-size:.9rem;margin:4px 0}
+  .fc-opt small{color:var(--mut);font-size:.75rem}
+
+  /* upload */
+  .drop{display:block;border:2px dashed #c9c6bf;border-radius:12px;padding:var(--s5);text-align:center;
+    color:var(--mut);cursor:pointer;transition:.18s;background:var(--card);margin-top:var(--s3)}
+  .drop.hover,.drop:focus-within{border-color:var(--em);background:var(--eml)}
+  .drop:focus-within{outline:2px solid var(--navy);outline-offset:2px}
+  .drop .big{font-size:1.1rem;color:var(--ink);font-weight:600}
+  /* keep the file input keyboard-reachable instead of display:none */
+  .drop input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+  .picked{margin-top:var(--s3);background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:var(--s3);display:none}
+  .picked.show{display:block}
+  .picked .fn{font-weight:600}
+  .tsel{display:flex;align-items:center;gap:10px;margin-top:var(--s2);flex-wrap:wrap}
+  .tsel select{padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);
+    font-weight:600;font-size:.9rem;min-width:200px}
+  .primary{background:linear-gradient(135deg,var(--em),var(--emd));color:#fff;border:1px solid transparent;
+    border-radius:9px;padding:12px 22px;font-weight:650;font-size:1rem;cursor:pointer;
+    transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;margin-top:var(--s3);box-shadow:var(--shadow-sm)}
+  .primary:hover{filter:brightness(1.06);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+  .primary:active,.ghost:active,.dlb:active,.dcard:active,.fc-opt:active{transform:translateY(1px)}
+  .primary:disabled{background:#9fbcb2;cursor:not-allowed;box-shadow:none;transform:none}
+  .back{margin-top:var(--s3)}
+  .err{background:var(--redl);border:1px solid #eccfc9;color:var(--red);border-radius:8px;
+    padding:11px 14px;font-size:.9rem;margin-top:var(--s2)}
+
+  /* processing */
+  .proc{text-align:center;padding:var(--s6) 0}
+  .proc .ring{width:46px;height:46px;border:4px solid #dfe8e4;border-top-color:var(--em);
+    border-radius:50%;animation:sp .8s linear infinite;margin:0 auto var(--s3)}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .log{font-family:var(--mono);font-size:.9rem;line-height:2.1;color:var(--mut);display:inline-block;text-align:left}
+  .log .done{color:var(--ink)} .log .done::before{content:"\2713  ";color:var(--em);font-weight:700}
+  .log .wait{opacity:.55} .log .wait::before{content:"...  "}
+  .pbar{max-width:320px;height:6px;border-radius:999px;background:#E5E9F0;margin:var(--s3) auto 10px;overflow:hidden}
+  .pfill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--em),#3fa286)}
+  .procnote{color:var(--mut);font-size:.82rem}
+
+  /* result */
+  .rnav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;
+    background:var(--bg);border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:var(--s2)}
+  .rnav .vchip{font-size:.78rem;font-weight:700;border-radius:999px;padding:4px 11px;white-space:nowrap}
+  .rnav .vchip.good{background:var(--eml);color:var(--emd)} .rnav .vchip.amber{background:var(--amberl);color:var(--amber)}
+  .rnav .rlinks{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+  .rnav a{font-size:.82rem;font-weight:600;color:var(--mut);text-decoration:none;padding:5px 10px;border-radius:7px}
+  .rnav a:hover{color:var(--em);background:var(--eml)}
+  @media(max-width:560px){.rnav .rlinks{margin-left:0}.rnav a{padding:5px 8px}}
+  #labcard,#detectorcard,#dlcard,#engineer,.card{scroll-margin-top:64px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:var(--s3);margin:var(--s3) 0;box-shadow:var(--shadow-sm)}
+  .verdict{border-radius:12px;padding:18px 22px;font-size:1.15rem;font-weight:650;margin-bottom:var(--s3)}
+  .verdict.good{background:var(--eml);border-left:5px solid var(--em);color:#0b4a3a}
+  .verdict.amber{background:var(--amberl);border-left:5px solid var(--amber);color:#7c3a06}
+  .card h3{font-size:1.05rem;margin-bottom:var(--s1)}
+  .card .csub{color:var(--mut);font-size:.9rem;margin-bottom:var(--s2)}
+
+  .brow{margin:var(--s2) 0}
+  .brow .blab{display:flex;justify-content:space-between;font-size:.88rem;font-weight:600;margin-bottom:6px}
+  .brow .blab .cnt{font-family:var(--mono);color:var(--mut);font-weight:500}
+  .bbar{display:flex;height:30px;border-radius:7px;overflow:hidden;background:#F0EFEB}
+  .seg{height:100%;transition:width .7s ease-out}
+  .seg.maj{background:var(--grey)} .seg.min{background:var(--em)}
+  .seg.synth{background:repeating-linear-gradient(45deg,var(--em),var(--em) 6px,#3fa286 6px,#3fa286 12px)}
+  .brow.locked .bbar{opacity:.6}
+  .locknote{display:flex;gap:7px;font-size:.82rem;color:var(--mut);margin-top:5px}
+  .legend{display:flex;gap:var(--s2);font-size:.76rem;color:var(--mut);margin-top:var(--s1);flex-wrap:wrap}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+
+  .labgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+  @media(max-width:560px){.labgrid{grid-template-columns:1fr}}
+  .labc{border:1px solid var(--line);border-radius:10px;padding:var(--s2);text-align:center}
+  .labc.leaky{border-top:3px solid var(--red)} .labc.honest{border-top:3px solid var(--em)}
+  .labc .t{font-weight:650;font-size:.9rem} .labc .s{font-size:.76rem;color:var(--mut);margin:2px 0 8px}
+  .labc .big{font-family:var(--mono);font-variant-numeric:tabular-nums slashed-zero;font-size:2.9rem;font-weight:700;line-height:1}
+  .labc.leaky .big{color:var(--red)} .labc.honest .big{color:var(--em)}
+  /* make the Leakage Detective the visual anchor of the result page */
+  #labcard{border:2px solid var(--em);box-shadow:var(--shadow-md)}
+  #labcard>h3{font-size:1.15rem}
+  .labc .big,.cmc .v,table.mx td,.pvrow b,table.dett td,.thesisstrip b{font-variant-numeric:tabular-nums slashed-zero}
+  .deltapill{display:inline-block;margin-top:var(--s2);background:var(--redl);color:var(--red);
+    border:1px solid #eccfc9;border-radius:999px;padding:8px 18px;font-family:var(--mono);font-weight:700}
+  .deltapill.none{background:var(--eml);color:var(--emd);border-color:#cde5dd}
+  .trap{border-radius:10px;padding:12px 16px;font-size:.9rem;margin-bottom:var(--s2);
+    background:var(--redl);border-left:4px solid var(--red);color:#7a2018}
+  .trap.ok{background:var(--eml);border-left-color:var(--em);color:#0b4a3a}
+  .faked{text-align:center;margin-top:var(--s2);font-family:var(--mono);font-weight:700;color:var(--red)}
+  .faked b{font-size:1.15rem}
+  .whymatter{margin-top:var(--s2);font-size:.84rem;color:var(--mut);border-top:1px solid var(--line);padding-top:12px}
+  .morechecks{margin-top:var(--s2);border-top:1px solid var(--line);padding-top:12px}
+  .mchead{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);font-weight:700;margin-bottom:8px}
+  .lkchk{font-size:.86rem;border-radius:8px;padding:9px 12px;margin-bottom:6px;line-height:1.45}
+  .lkchk.ok{background:var(--eml);color:#0b4a3a;border-left:3px solid var(--em)}
+  .lkchk.warn{background:var(--amberl);color:#7c3a06;border-left:3px solid var(--amber)}
+  .lkchk::before{font-weight:700;margin-right:6px}
+  .lkchk.ok::before{content:"\2713";color:var(--good)} .lkchk.warn::before{content:"\26A0";color:var(--amber)}
+
+  .dl{display:flex;gap:var(--s1);flex-wrap:wrap;margin-top:var(--s1)}
+  .dlb{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:9px;padding:11px 16px;
+    font-size:.9rem;font-weight:600;transition:.15s}
+  .dlb:hover{border-color:var(--em)}
+  .dlb.p{background:var(--em);color:#fff;border-color:var(--em)}
+  .dlchecks{display:flex;gap:var(--s2);flex-wrap:wrap;font-size:.8rem;color:var(--emd);font-weight:600;margin-bottom:12px}
+  .dlchecks span::before{content:"\2713  ";color:var(--em);font-weight:700}
+
+  details.more{margin-top:var(--s3);border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden}
+  details.more>summary{cursor:pointer;padding:16px var(--s3);font-weight:650;list-style:none;user-select:none}
+  details.more>summary::-webkit-details-marker{display:none}
+  details.more>summary::before{content:"+ ";color:var(--em);font-weight:800}
+  details.more[open]>summary::before{content:"- "}
+  .morebody{padding:0 var(--s3) var(--s3)}
+
+  .cmgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
+  @media(max-width:760px){.cmgrid{grid-template-columns:1fr}}
+  .cmcard.hero{border-color:var(--em);box-shadow:0 0 0 1px var(--em) inset}
+  .cmcard{border:1px solid var(--line);border-radius:10px;padding:var(--s2)}
+  .cmcard .t{font-weight:650;font-size:.88rem}
+  .cmcard .sub{font-size:.75rem;color:var(--mut);margin:2px 0 10px;line-height:1.45}
+  .whatis{background:#F4F3F0;border-radius:8px;padding:12px 14px;font-size:.85rem;color:#40514b;margin-bottom:var(--s2)}
+  .whatis b{color:var(--ink)}
+  .cm{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cmc{border-radius:7px;padding:10px;text-align:center;background:#F4F3F0}
+  .cmc.catch{background:var(--eml)} .cmc.miss{background:var(--amberl)}
+  .cmc .v{font-family:var(--mono);font-size:1.4rem;font-weight:700}
+  .cmc.catch .v{color:var(--em)} .cmc.miss .v{color:var(--amber)}
+  .cmc .l{font-size:.7rem;color:var(--mut);font-weight:600}
+  .sliderbox{margin-top:var(--s3)}
+  .sliderbox label{font-weight:650;font-size:.9rem}
+  .sliderbox .tv{font-family:var(--mono);color:var(--em);font-weight:700}
+  input[type=range]{width:100%;accent-color:var(--em);margin-top:8px}
+  .tradeoff{background:#F4F3F0;border-radius:8px;padding:11px 14px;font-size:.9rem;margin-top:var(--s2)}
+  table.mx{border-collapse:collapse;width:100%;font-size:.85rem;margin-top:var(--s3)}
+  table.mx th,table.mx td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:right;font-family:var(--mono)}
+  table.mx th:first-child,table.mx td:first-child{text-align:left;font-family:inherit}
+  table.mx thead th{color:var(--mut);font-size:.72rem;text-transform:uppercase;font-family:inherit}
+  td.dim,th.dim{color:#B3B0A9}
+  .dchip{display:inline-block;font-size:.72rem;border-radius:6px;padding:1px 6px;margin-left:6px;font-weight:700}
+  .dchip.up{background:var(--eml);color:var(--emd)} .dchip.flat{background:#F0EFEB;color:var(--mut)}
+  pre.snip{background:var(--code-bg);color:var(--code-text);border-radius:8px;padding:var(--s2);overflow-x:auto;
+    font-size:.76rem;line-height:1.55;position:relative;font-family:var(--mono);margin-top:var(--s2)}
+  .copy{position:absolute;top:9px;right:9px;background:#1f2a3d;color:var(--code-text);border:1px solid #33415a;
+    border-radius:6px;padding:4px 11px;font-size:.75rem;cursor:pointer}
+  table.dett{border-collapse:collapse;width:100%;font-size:.82rem;margin-top:8px;font-family:var(--mono);
+    display:block;overflow-x:auto;white-space:nowrap}
+  table.dett th,table.dett td{border-bottom:1px solid var(--line);padding:7px 11px;text-align:right}
+  table.dett thead th{color:var(--mut);font-size:.68rem;text-transform:uppercase;font-family:inherit}
+  .dett .risk{color:var(--em);font-weight:700}
+  .dett .flag{background:var(--redl);color:var(--red);border-radius:5px;padding:1px 8px;font-weight:700;font-size:.72rem}
+  .dett .yes{color:var(--em);font-weight:700} .dett .no{color:var(--mut)}
+  .fixnotes{background:var(--amberl);border:1px solid #ecd9b8;border-radius:10px;padding:12px 16px;
+    font-size:.85rem;color:#7c3a06;margin-bottom:var(--s3)}
+  .fixnotes ul{margin:6px 0 0 18px;padding:0}
+  .rmeta{color:var(--mut);font-size:.9rem;margin:var(--s1) 0 var(--s3)}
+  .rmline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .rmeta select{padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:.85rem;font-weight:600}
+  .foldbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .foldlbl{font-weight:650;color:var(--ink);font-size:.85rem}
+  .foldbtn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:9px;padding:7px 13px;
+    font-size:.85rem;font-weight:650;color:var(--ink);text-align:left;transition:.15s}
+  .foldbtn:hover{border-color:var(--em)}
+  .foldbtn.on{border-color:var(--em);background:var(--eml);box-shadow:0 0 0 1px var(--em) inset}
+  .foldbtn small{display:block;color:var(--mut);font-weight:500;font-size:.7rem}
+  .resultactions{margin-top:var(--s4);display:flex;gap:var(--s2);flex-wrap:wrap}
+  .hidden{display:none}
+  /* ---- dark mode: follows the OS, no toggle needed ---- */
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0B0E14; --card:#151A22; --line:#262C38; --ink:#E6EAF1; --mut:#9BA5B4;
+      --navy:#A9C0DD; --navyl:#1B2432;
+      --em:#2DD4BF; --emd:#14B8A6; --eml:#12312C;
+      --red:#F87171; --redl:#3A1A1A; --amber:#FBBF24; --amberl:#3A2A12;
+      --good:#4ADE80; --grey:#3A4150; --code-bg:#080B11; --code-text:#E6EAF1;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow-md:0 6px 16px -4px rgba(0,0,0,.5);
+      --shadow-lg:0 16px 40px -10px rgba(0,0,0,.6);
+    }
+    /* bright teal + white text fails contrast, so keep the CTA a deep teal */
+    .primary{background:linear-gradient(135deg,#0F9E8E,#0F766E)}
+    .dlb.p{background:#0F766E;border-color:#0F766E}
+    /* neutral inset panels that were hardcoded light greys */
+    .whatis,.cmc,.tradeoff{background:#1A2029} .whatis{color:#C2CCD6}
+    .bbar,.dchip.flat,.pbar{background:#232A35} .dchip.flat{color:var(--mut)}
+    .drop,.dcard.own{border-color:#3A4150}
+    .proc .ring{border-color:#2A3340;border-top-color:var(--em)}
+    .err,.deltapill{border-color:#5B2B28} .deltapill.none{border-color:#245047}
+    td.dim,th.dim{color:#6B7580} .primary:disabled{background:#2A4A44}
+    /* status text now sits on dark tints, so lighten it */
+    .verdict.good,.trap.ok,.lkchk.ok{color:#8FE9CE}
+    .verdict.amber,.lkchk.warn{color:#F5CE8A}
+    .fixnotes{color:#F5CE8A;border-color:#5A4420}
+    .trap,.pvtrap{color:#F6B0A6}
+    #screen-welcome{background:radial-gradient(1100px 520px at 82% -12%,rgba(45,212,191,.10),transparent 60%)}
+  }
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="top"><div class="wrap">
+  <span class="brand">Fix Your Dataset<span class="dot">.</span></span>
+  <div class="right"><button class="startover hidden" id="startover">Start over</button></div>
+</div></div>
+
+<!-- SCREEN 1: WELCOME -->
+<section class="screen active" id="screen-welcome"><div class="wrap">
+  <div class="hero2">
+    <div class="heroL">
+      <div class="kicker">ML honesty auditor</div>
+      <h1>Find the hidden ways your ML dataset can mislead you.</h1>
+      <p class="herosub">A common mistake is to balance the data <i>before</i> splitting it, which lets the
+        test set leak into training and makes the score look better than it really is. This tool locks the
+        test set and shows you the honest score next to the optimistic one. It also puts
+        <b>ERF-CSRBoost</b>, an experimental, unpublished extension of CSRBoost, head to head with the
+        published IEEE method, judged only on data the models never saw.</p>
+      <div class="ctas">
+        <button class="primary" id="cta-demo">Run a live demo</button>
+        <button class="ghost" id="cta-upload">Upload my dataset</button>
+      </div>
+    </div>
+    <aside class="heroR">
+      <div class="preview">
+        <div class="pvtag">Leakage detective &middot; liver demo</div>
+        <div class="pvtrap">Leak found: balanced before the split</div>
+        <div class="pvrows">
+          <div class="pvrow leaky"><span>Leaky score</span><b>0.741</b></div>
+          <div class="pvrow honest"><span>Honest score</span><b>0.701</b></div>
+        </div>
+        <div class="pvlift">Inflated by +0.040 balanced accuracy, does not hold on unseen data</div>
+      </div>
+      <div class="pvcap">A real result from the liver demo (one split, seed 42). Run it yourself in one click.</div>
+    </aside>
+  </div>
+
+  <h2 class="choose">Try it on real data</h2>
+  <div class="lead">Pick a field to see it work, or bring your own file.</div>
+  <div id="sections"></div>
+  <button class="dcard own" id="ownbtn" style="margin-top:var(--s3);width:100%"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/></svg></span>
+    <span><b>Use my own file</b><p>Upload a CSV, Excel, or .dat and choose how thoroughly to check it</p></span></button>
+
+  <div class="checks">
+    <div class="chk"><b>Class imbalance</b><span>how rare the rare class is, and whether balancing even helps</span></div>
+    <div class="chk"><b>Leakage</b><span>balancing before the split, which quietly inflates the score</span></div>
+    <div class="chk"><b>Wrong target</b><span>an ID, a score, or a continuous column mistaken for the label</span></div>
+    <div class="chk"><b>Locked test set</b><span>every score measured only on rows the models never saw</span></div>
+  </div>
+
+  <p class="privacy">Uploaded files are processed in memory and are not saved. The server does keep a
+    usage event for each visit and analysis: the time, the action, the demo name (or the word
+    "upload"), the referrer, and a visitor hash that changes daily. That hash is pseudonymous, not
+    anonymous. No raw IP address, file name or file content is stored, visitors get no cookie, and
+    these events are not deleted automatically.</p>
+
+  <footer class="foot">
+    <div><b>Fix Your Dataset</b> &middot; a live ML honesty auditor that grew out of a graduation thesis
+      project (a CSRBoost replication and the experimental ERF-CSRBoost extension). Sherwan Ali.</div>
+    <div class="de">The bundled demo datasets are modified copies of datasets from the UCI Machine Learning
+      Repository (CC BY 4.0). Credit, DOIs and the changes made are listed in THIRD_PARTY_NOTICES.md
+      in the project's repository.</div>
+    <div class="footlinks" id="footlinks">
+      <a href="https://www.linkedin.com/in/sherwan-ali/" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="https://github.com/SherwanAli0" target="_blank" rel="noopener">GitHub profile</a>
+      <a href="https://github.com/SherwanAli0/csrboost-audit" target="_blank" rel="noopener">Replication code (GitHub)</a>
+    </div>
+  </footer>
+</div></section>
+
+<!-- SCREEN 2: UPLOAD -->
+<section class="screen" id="screen-upload"><div class="wrap">
+  <div class="kicker">Your data</div>
+  <h1>Upload your file</h1>
+  <div class="lead">Drop a file with a rare class. The file is processed in memory and is not saved.</div>
+  <label class="drop" id="drop"><input type="file" id="file"
+      accept=".csv,.data,.txt,.tsv,.tab,.names,.dat,.xlsx,.xls,text/csv,text/plain,application/octet-stream,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+    <div class="big">Drop your data file here</div>
+    <div>.csv, .xlsx, .xls, .data, .txt, .tsv accepted.</div></label>
+  <div id="uperr"></div>
+  <div class="foldchoose" id="foldchoose">
+    <h3>How thorough should the check be?</h3>
+    <p class="fc-explain">To judge the method fairly we split your data into <b>folds</b>: train on part,
+      test on the rest, then rotate so every row gets tested. We average across all folds, so one
+      lucky or unlucky split cannot fool the result. More folds means a more reliable answer, but it
+      takes longer.</p>
+    <div class="fc-opts">
+      <button class="fc-opt" data-folds="3"><b>Quick</b><span>3 folds</span><small>a few seconds</small></button>
+      <button class="fc-opt" data-folds="20"><b>Balanced</b><span>20 folds</span><small>about a minute</small></button>
+      <button class="fc-opt" data-folds="100"><b>Full</b><span>100 folds</span><small>most thorough, a few minutes</small></button>
+    </div>
+  </div>
+  <div class="back"><button type="button" class="link" id="backhome">Back</button></div>
+</div></section>
+
+<!-- SCREEN 3: PROCESSING -->
+<section class="screen" id="screen-proc"><div class="wrap">
+  <div class="proc">
+    <div class="ring"></div>
+    <div class="log" id="log" aria-live="polite"></div>
+    <div class="pbar"><div class="pfill" id="pfill"></div></div>
+    <div class="procnote">Working - this usually takes about 10 to 15 seconds.</div>
+  </div>
+</div></section>
+
+<!-- SCREEN 4: RESULT -->
+<section class="screen" id="screen-result"><div class="wrap">
+  <div class="kicker">Your result</div>
+  <h1 id="rtitle">Done. Here is what we found.</h1>
+  <div class="rmeta" id="rmeta"></div>
+  <div id="fixnotes"></div>
+  <div id="verdict"></div>
+  <div id="caveat"></div>
+
+  <nav class="rnav" id="rnav" aria-label="Result sections"></nav>
+
+  <div class="card">
+    <h3>We balanced your training data</h3>
+    <div class="csub" id="barsub">We split the data first, then balanced only the training half. The test rows stay locked.</div>
+    <div id="bars"></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--grey)"></span>common class</span>
+      <span><span class="sw" style="background:var(--em)"></span>rare class (real)</span>
+      <span><span class="sw" style="background:repeating-linear-gradient(45deg,var(--em),var(--em) 4px,#3fa286 4px,#3fa286 8px)"></span>added to balance it</span>
+    </div>
+  </div>
+
+  <div class="card" id="labcard">
+    <h3>Leakage detective</h3>
+    <div class="csub">A common way results get overstated: balance the whole dataset, then split. Copies of the test rows leak into training and the score rises. Here is that leaky score next to the honest one, on your data.</div>
+    <div id="lab"></div>
+  </div>
+
+  <div class="card" id="detectorcard">
+    <h3>Your detector is ready</h3>
+    <div class="csub" id="detsummary"></div>
+    <div id="dettable"></div>
+    <div style="margin-top:var(--s3);border-top:1px solid var(--line);padding-top:var(--s3)">
+      <div style="font-weight:650;font-size:.95rem">Score your own file</div>
+      <div class="csub">Upload new rows (the answer column is optional). It flags the likely rare cases and gives you the file back.</div>
+      <label class="drop" id="scoredrop" style="padding:var(--s3)"><input type="file" id="scorefile"
+          accept=".csv,.data,.txt,.tsv,.xlsx,.xls,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        <div class="big">Drop a file to score</div><div>.csv or .xlsx, or click to browse</div></label>
+      <div id="scoreout"></div>
+    </div>
+  </div>
+
+  <div class="card" id="dlcard">
+    <h3>Take it with you</h3>
+    <div class="dlchecks"><span>Split before balancing</span><span>Test set never touched</span></div>
+    <div class="dl">
+      <button class="dlb p" id="dltrain">Download balanced data</button>
+      <button class="dlb" id="dltest">Download test set</button>
+      <button class="dlb" id="dlreceipt">Download honesty receipt</button>
+    </div>
+  </div>
+
+  <details class="more" id="engineer"><summary>Show the full breakdown (for engineers)</summary>
+    <div class="morebody">
+      <div id="cmwrap"></div>
+      <div id="mtable"></div>
+      <h3 style="margin-top:var(--s3)">Leakage-safe pipeline</h3>
+      <pre class="snip"><button class="copy" id="copybtn">Copy</button><code id="snip"></code></pre>
+    </div>
+  </details>
+
+  <div class="resultactions">
+    <button class="primary" id="again" style="margin-top:0">Try another dataset</button>
+  </div>
+</div></section>
+
+<script>
+const $=s=>document.querySelector(s);
+// escape anything that came from the file (column names, cell values, server notes/errors)
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TIPS={recall:"Of 100 real rare cases, how many did we catch?",precision:"When we raise an alarm, how often is it real?",
+  f1:"Balances catching cases and avoiding false alarms.",gmean:"Balances both classes; punishes ignoring the rare one.",
+  balanced_accuracy:"Average accuracy per class, immune to the 97 percent trick.",pr_auc:"How well rare cases are ranked first.",
+  roc_auc:"Threshold-free ranking quality.",accuracy:"Misleading under imbalance."};
+const METHOD='clustered_smote', CLF='erf';
+let CSV=null, PROFILE=null, R=null, IS_UPLOAD=false, FOLDS=1, PENDING=null, SRC='?';
+// domain word for each demo, so the detector reads "records"/"clients", not "transactions".
+// Liver: the rare class is the records WITHOUT liver disease, so the noun is "records", not "patients".
+// Student: the rare class is "Enrolled" students, who are still students.
+const DEMO_NOUN={'liver_disease.csv':'records','credit_default.csv':'clients',
+  'student_dropout.csv':'students','car_quality.csv':'cars'};
+let NOUN='rows';
+
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('#'+id).classList.add('active'); $('#startover').classList.toggle('hidden', id==='screen-welcome');
+  window.scrollTo({top:0,behavior:'smooth'}); }
+
+const ICO={
+  Medical:'<path d="M3 12h4l2-6 3.5 12 2.5-8 1.5 4H21"/>',
+  Finance:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10.5h18"/>',
+  Education:'<path d="M12 4 2.5 8.2 12 12.5l9.5-4.3z"/><path d="M6.5 10.4v4.1c0 1.3 2.7 2.6 5.5 2.6s5.5-1.3 5.5-2.6v-4.1"/>',
+  Manufacturing:'<path d="M12 3l8 4.4v9L12 21l-8-4.6v-9z"/><path d="M4.3 7.8 12 12l7.7-4.2M12 12v8.6"/>',
+  _:'<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M3.5 9.5h17M9.5 3.5v17"/>'};
+const SVGW=p=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const iconFor=cat=>`<span class="ic">${SVGW(ICO[cat]||ICO._)}</span>`;
+async function boot(){
+  const s=await (await fetch('/api/samples')).json();
+  const order=s.order||[...new Set(s.samples.map(x=>x.category))];
+  const byCat={}; s.samples.forEach(x=>{(byCat[x.category||'Datasets']=byCat[x.category||'Datasets']||[]).push(x);});
+  const cards=order.filter(c=>byCat[c]).flatMap(cat=>byCat[cat].map(x=>
+    `<button class="dcard" data-name="${x.name}"><span class="catchip">${cat}</span>
+       ${iconFor(cat)}
+       <span><b>${x.label}</b><p>${x.desc}</p></span></button>`));
+  $('#sections').innerHTML=`<div class="grid4">${cards.join('')}</div>`;
+  document.querySelectorAll('.dcard[data-name]').forEach(b=> b.addEventListener('click', ()=> runDemo(b.dataset.name)));
+  const gotoUpload=()=>{ $('#foldchoose').classList.remove('show'); $('#uperr').innerHTML=''; show('screen-upload'); };
+  $('#ownbtn').addEventListener('click',gotoUpload);
+  $('#cta-upload').addEventListener('click',gotoUpload);
+  // "Run the 30-second demo" -> the flagship (liver), falling back to the first sample
+  const names=s.samples.map(x=>x.name);
+  const flagship=names.includes('liver_disease.csv')?'liver_disease.csv':names[0];
+  $('#cta-demo').addEventListener('click',()=>{ if(flagship) runDemo(flagship); });
+  // deep link: ?demo=liver (also credit, student, car) opens a finished example result directly
+  const alias={liver:'liver_disease.csv',credit:'credit_default.csv',student:'student_dropout.csv',car:'car_quality.csv'};
+  const q=new URLSearchParams(location.search).get('demo');
+  if(q){ const n=alias[q.toLowerCase()]||(names.includes(q)?q:null); if(n) runDemo(n); }
+  const drop=$('#drop');
+  drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('hover')});
+  drop.addEventListener('dragleave',()=>drop.classList.remove('hover'));
+  drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('hover');
+    const f=e.dataTransfer.files[0]; if(f) readFile(f);});
+  $('#file').addEventListener('change',e=>{const f=e.target.files[0]; if(f) readFile(f);});
+  document.querySelectorAll('.fc-opt').forEach(o=> o.addEventListener('click', ()=>{
+    const n=+o.dataset.folds;
+    if(n>=100 && !confirm('A full 100-fold run trains the models 100 times and can take a few minutes. Continue?')) return;
+    if(PENDING) runPipeline(PENDING.csv, PENDING.target, n);
+  }));
+  $('#backhome').addEventListener('click',()=>show('screen-welcome'));
+  $('#startover').addEventListener('click',reset);
+  $('#again').addEventListener('click',reset);
+}
+function reset(){ CSV=null;PROFILE=null;R=null;PENDING=null;IS_UPLOAD=false;FOLDS=1;READ_NOTES=[];
+  $('#file').value=''; $('#uperr').innerHTML=''; $('#foldchoose').classList.remove('show'); show('screen-welcome'); }
+
+function b64FromBuffer(buf){
+  const bytes=new Uint8Array(buf); let s='';
+  for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+  return btoa(s);
+}
+let READ_NOTES=[];   // conversion notes (e.g. "extracted from ZIP", "decoded as windows-1252")
+// EVERY file goes to the server as raw bytes: the server decodes encodings (UTF-8/16,
+// Windows-1252), unpacks ZIP/GZIP, converts Excel/JSON/Stata, and returns clean CSV text.
+function fileToCsv(f){ return new Promise((resolve,reject)=>{
+  if(f.size > 30*1024*1024){ reject('That file is larger than 30 MB. Please upload a sample of it.'); return; }
+  const r=new FileReader();
+  r.onload=async ()=>{
+    try{
+      const resp=await (await fetch('/api/convert',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({b64:b64FromBuffer(r.result),name:f.name})})).json();
+      if(resp.ok){ READ_NOTES=resp.notes||[]; resolve(resp.csv); }
+      else reject(resp.error||'Could not read that file.');
+    }catch(e){reject('Could not read that file.');}
+  };
+  r.onerror=()=>reject('Could not read that file.');
+  r.readAsArrayBuffer(f);
+});}
+
+// upload = analyze immediately. No questions: we detect the target and fix it.
+async function readFile(f){
+  $('#uperr').innerHTML='';
+  let csv;
+  try{ csv=await fileToCsv(f); }
+  catch(e){ $('#uperr').innerHTML=`<div class="err">${esc(e)}</div>`; return; }
+  try{ PROFILE=await (await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({csv})})).json(); }
+  catch(e){ $('#uperr').innerHTML='<div class="err">Could not read that file.</div>'; return; }
+  if(!PROFILE || PROFILE.ok===false || !PROFILE.suggested_target){
+    $('#uperr').innerHTML=`<div class="err">Could not read that file: ${esc((PROFILE&&PROFILE.error)||'unrecognized format')}.</div>`;
+    show('screen-upload'); return;
+  }
+  // do NOT auto-run: let the user pick how thorough the check should be
+  IS_UPLOAD=true; SRC='upload'; NOUN='rows';
+  PENDING={csv, target:PROFILE.suggested_target};
+  const guess=(PROFILE.target_confident===false && PROFILE.guess_reason)
+    ? `<div class="fixnotes" style="margin-top:8px">${esc(PROFILE.guess_reason)} You can change it on the next screen.</div>` : '';
+  $('#uperr').innerHTML=`<div class="hint" style="margin-top:10px">Loaded <b>${PROFILE.n_rows.toLocaleString()} rows</b>, we will predict <b>${esc(PROFILE.suggested_target)}</b>.</div>${guess}`;
+  $('#foldchoose').classList.add('show');
+  $('#foldchoose').scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+async function runDemo(name){
+  IS_UPLOAD=false; SRC='demo:'+name; READ_NOTES=[]; NOUN=DEMO_NOUN[name]||'cases';   // demos stay on the fast single split
+  const txt=await (await fetch('/api/sample?name='+encodeURIComponent(name))).text();
+  PROFILE=await (await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({csv:txt})})).json();
+  runPipeline(txt, PROFILE.suggested_target, 1);
+}
+
+const LOGLINES=["Splitting your data (test rows locked)","Balancing the training half only",
+  "Training a model the honest way","Checking it on the untouched test rows","Running the shortcut for comparison"];
+async function runPipeline(csv,target,folds){
+  CSV=csv; FOLDS=folds||1;        // keep the training data available for the detector's scorer
+  show('screen-proc');
+  const slow = FOLDS>=20;
+  const el=$('#log'); el.innerHTML=''; let i=0, timer;
+  const lines = FOLDS>1
+    ? ["Splitting your data into "+FOLDS+" folds","Training plain, CSRBoost and ERF-CSRBoost on each",
+       "Scoring every fold on held-out rows","Averaging across all folds"+(slow?" (this takes a few minutes)":"")]
+    : LOGLINES;
+  // pace the step-log across the expected duration (not a fixed 430ms) so it doesn't finish in 2s
+  const dur = FOLDS>=100?120: FOLDS>=20?45: 14;          // rough expected seconds
+  const step = Math.max(500, (dur*1000)/(lines.length+1));
+  const add=()=>{ if(i>0) el.children[i-1].className='done';
+    if(i<lines.length){ const d=document.createElement('div');d.className='wait';d.textContent=lines[i];el.appendChild(d);i++;
+      timer=setTimeout(add,step);} };
+  add();
+  // determinate progress bar: ease to ~92% over the expected time, snap to 100% when done
+  const pf=$('#pfill'); pf.style.transition='none'; pf.style.width='0%';
+  requestAnimationFrame(()=>{ pf.style.transition=`width ${dur}s cubic-bezier(.25,.7,.2,1)`; pf.style.width='92%'; });
+  try{
+    const r=await (await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({csv,target,method:METHOD,do_classify:true,classifier:CLF,folds:FOLDS,src:SRC})})).json();
+    clearTimeout(timer);
+    pf.style.transition='width .3s ease'; pf.style.width='100%';
+    if(!r.ok){ $('#uperr').innerHTML=`<div class="err">${esc(r.error||'Something went wrong.')}</div>`;
+      show(PROFILE?'screen-upload':'screen-welcome'); return; }
+    R=r; render(r); show('screen-result');
+  }catch(e){ clearTimeout(timer); show('screen-welcome'); }
+}
+
+/* ---------- result ---------- */
+function render(r){ renderMeta(r); renderNotes(r); renderBars(r); renderVerdict(r); renderCaveat(r); renderLab(r); renderDetector(r); renderBreakdown(r); renderDl(r); renderNav(r); }
+function renderNav(r){
+  const nav=$('#rnav'); if(!nav) return;
+  const c=r.classify||{};
+  if(!c.erf){ nav.style.display='none'; nav.innerHTML=''; return; }
+  const chip = chipFor(r);   // same ahead / behind / mixed / about the same logic as the verdict
+  const links=[];
+  if(r.leakage_lab) links.push(['#labcard','Leak check']);
+  if(c.detector) links.push(['#detectorcard','Detector']);
+  links.push(['#dlcard','Downloads'],['#engineer','Details']);
+  nav.style.display='';
+  nav.innerHTML=`<span class="vchip ${chip.cls}">${chip.text}</span>`
+    +`<span class="rlinks">${links.map(([h,t])=>`<a href="${h}">${t}</a>`).join('')}</span>`;
+  const eng=nav.querySelector('a[href="#engineer"]');
+  if(eng) eng.addEventListener('click',()=>{ const d=$('#engineer'); if(d) d.open=true; });
+}
+function renderCaveat(r){
+  const f=(r.classify&&r.classify.folds)||1;
+  const dg=(r.classify&&r.classify.folds_downgraded_from)
+    ? ` You asked for ${r.classify.folds_downgraded_from} folds, but the rare class is too small to split that many ways, so one 75/25 split was used instead.` : '';
+  $('#caveat').innerHTML = f>1
+    ? `<div class="csub" style="margin-top:8px">Averaged over <b>${f} folds</b> for a steadier read.</div>`
+    : `<div class="csub" style="margin-top:8px">These are single-split numbers for a fast live check and they are noisy. They are not the results of any research table; upload your own file and pick 20 or 100 folds for a steadier read.${dg}</div>`;
+}
+
+function renderNotes(r){
+  const notes=[...(READ_NOTES||[]), ...((r.warnings)||[])];
+  $('#fixnotes').innerHTML = notes.length
+    ? `<div class="fixnotes"><b>Notes about your data:</b><ul>${
+        notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></div>` : '';
+}
+
+function renderMeta(r){
+  const cols=(PROFILE&&PROFILE.columns)||[];
+  const opts=cols.map(c=>`<option value="${esc(c.column)}" ${c.column===r.target?'selected':''}>${esc(c.column)}</option>`).join('');
+  const foldN=(r.classify&&r.classify.folds)||FOLDS;
+  const foldsBar = IS_UPLOAD ? `<div class="foldbar">
+      <span class="foldlbl">How thorough is the check?</span>
+      ${[[3,'Quick','3 folds'],[20,'Balanced','20 folds'],[100,'Full','100 folds, slower']].map(([n,l,d])=>
+        `<button class="foldbtn ${foldN===n?'on':''}" data-folds="${n}" title="${d}">${l}<small>${d}</small></button>`).join('')}
+    </div>` : '';
+  $('#rmeta').innerHTML=`<div class="rmline"><span>We analyzed ${r.n_rows.toLocaleString()} rows and predicted <b>${esc(r.target)}</b> (imbalance ratio ${r.ir}:1)`
+    +(foldN>1?`, averaged over <b>${foldN} folds</b>`:'')+`.</span>`
+    +(cols.length>1?`<button type="button" class="link" id="chgcol">Wrong column?</button><span id="chgwrap" class="hidden"><select id="chgsel">${opts}</select></span>`:'')
+    +`</div>`+foldsBar;
+  const chg=$('#chgcol');
+  if(chg){ chg.onclick=()=>$('#chgwrap').classList.toggle('hidden');
+    $('#chgsel').onchange=e=>{ if(e.target.value!==r.target) runPipeline(CSV,e.target.value,FOLDS); }; }
+  document.querySelectorAll('.foldbtn').forEach(b=> b.onclick=()=>{
+    const n=+b.dataset.folds;
+    if(n>=100 && !confirm('A full 100-fold run trains the models 100 times and can take a few minutes. Continue?')) return;
+    runPipeline(CSV, r.target, n);
+  });
+}
+
+function detTable(cols, rows, withActual){
+  let h=`<table class="dett"><thead><tr>`+cols.map(c=>`<th>${esc(c)}</th>`).join('')
+    +`<th>chance</th><th>flag</th>`+(withActual?`<th>real case?</th>`:'')+`</tr></thead><tbody>`;
+  rows.forEach(row=>{ h+=`<tr>`+cols.map(c=>`<td>${esc(row.cols[c])}</td>`).join('')
+    +`<td class="risk">${Math.round(row.prob*100)}%</td>`
+    +`<td>${row.flag||row.prob>=0.5?'<span class="flag">FLAG</span>':''}</td>`
+    +(withActual?`<td>${row.actual===1?'<span class="yes">yes</span>':'<span class="no">no</span>'}</td>`:'')
+    +`</tr>`; });
+  return h+`</tbody></table>`;
+}
+function renderDetector(r){
+  const d=r.classify&&r.classify.detector, card=$('#detectorcard');
+  if(!d){card.classList.add('hidden');return;}
+  card.classList.remove('hidden');
+  const lbl=`${esc(r.target)} = ${esc(r.positive_label)}`;
+  $('#detsummary').innerHTML=`Your <b>ERF-CSRBoost</b> detector, shown <b>${d.total.toLocaleString()}</b>
+    ${NOUN} it never saw. It flagged <b>${d.flagged}</b> as likely rare cases, and <b>${d.caught}</b> of those
+    were really the rare case (${lbl}). ${d.missed} slipped through.`;
+  $('#dettable').innerHTML=detTable(d.display_cols, d.rows, true)
+    +`<div class="csub" style="margin-top:8px">The 15 rows most likely to be the rare case, from the unseen rows. "real case" shows it is catching genuine ones.</div>`;
+  $('#scoreout').innerHTML=''; $('#scorefile').value='';
+  $('#scorefile').onchange=async e=>{const f=e.target.files[0]; if(!f)return;
+    try{ scoreFile(await fileToCsv(f), r); }
+    catch(err){ $('#scoreout').innerHTML=`<div class="err">${esc(err)}</div>`; }};
+}
+async function scoreFile(csv,r){
+  $('#scoreout').innerHTML='<div class="csub" style="margin-top:10px">Scoring...</div>';
+  try{
+    const s=await (await fetch('/api/score',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({train_csv:CSV,target:r.target,method:METHOD,classifier:CLF,score_csv:csv})})).json();
+    if(!s.n && s.error){$('#scoreout').innerHTML=`<div class="err">${esc(s.error)}</div>`;return;}
+    $('#scoreout').innerHTML=`<div class="csub" style="margin-top:12px">Scored <b>${s.n.toLocaleString()}</b> ${NOUN},
+      flagged <b>${s.flagged}</b> as likely rare cases (${esc(r.target)} = ${esc(s.positive_label)}).</div>`
+      +detTable(s.display_cols, s.preview, false)
+      +`<div class="dl"><button class="dlb p" id="dlscored">Download scored file</button></div>`;
+    $('#dlscored').onclick=()=>dl('scored_'+NOUN+'.csv',s.scored_csv,'text/csv');
+  }catch(err){$('#scoreout').innerHTML=`<div class="err">${esc(err)}</div>`;}
+}
+
+function barRow(title,counts,opts={}){
+  const entries=Object.entries(counts); const tot=entries.reduce((a,[,v])=>a+v,0)||1;
+  let segs='';
+  entries.forEach(([k,v])=>{ const isMin = opts.minKey!==undefined ? k===opts.minKey : false;
+    if(isMin && opts.synthOf!==undefined && v>opts.synthOf){
+      segs+=`<div class="seg min" data-w="${opts.synthOf/tot*100}" style="width:0"></div><div class="seg synth" data-w="${(v-opts.synthOf)/tot*100}" style="width:0"></div>`;
+    } else segs+=`<div class="seg ${isMin?'min':'maj'}" data-w="${v/tot*100}" style="width:0"></div>`; });
+  const cnt=entries.map(([k,v])=>`${k}: <b class="cntv" data-v="${v}">0</b>`).join(' &nbsp; ');
+  return `<div class="brow ${opts.locked?'locked':''}"><div class="blab"><span>${title}</span><span class="cnt">${cnt}</span></div>
+    <div class="bbar">${segs}</div>${opts.locked?`<div class="locknote">🔒 ${opts.foldMode
+      ?`downloadable ${tot.toLocaleString()}-row test split, kept out of the balanced file. In fold mode the scores below are out-of-fold over all rows, not measured on this split`
+      :`never touched, ${tot.toLocaleString()} rows locked`}</div>`:''}</div>`;
+}
+function renderBars(r){
+  if(r.classify&&r.classify.folds>1)
+    $('#barsub').textContent='We split the data first, then balanced only the training half of the downloadable files. The model comparison below uses cross-validation: every row is scored only by models that did not train on it.';
+  else $('#barsub').textContent='We split the data first, then balanced only the training half. The test rows stay locked.';
+  const minKey=Object.keys(r.full_counts).pop();
+  const beforeMin=Math.min(...Object.values(r.before_train));
+  $('#bars').innerHTML=barRow('Your original data',r.full_counts,{minKey})
+    +barRow('Training set (balanced)',r.after_train,{synthOf:beforeMin,minKey})
+    +barRow('Test set',r.test_counts,{locked:true,minKey,foldMode:!!(r.classify&&r.classify.folds>1)});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    document.querySelectorAll('#bars .seg').forEach(s=>s.style.width=s.dataset.w+'%');
+    document.querySelectorAll('#bars .cntv').forEach(el=>{const tgt=+el.dataset.v,t0=performance.now();
+      const tick=t=>{const p=Math.min(1,(t-t0)/700);el.textContent=Math.round(tgt*p).toLocaleString();if(p<1)requestAnimationFrame(tick);};
+      requestAnimationFrame(tick);});
+  }));
+}
+function renderVerdict(r){
+  const c=r.classify; if(!c||!c.erf){$('#verdict').innerHTML='';return;}
+  if(r.ir < 1.5){
+    $('#verdict').innerHTML=`<div class="verdict amber">This column is already fairly balanced
+      (ratio ${r.ir}:1), so there is little to fix and balancing barely changes the result. If you
+      meant a rarer target, use "Wrong column?" above to pick it.</div>`;
+    return;
+  }
+  const pct=x=>Math.round(x*100);
+  if(!c.csrboost){   // multiclass fallback
+    const gain=c.erf.recall-c.plain.recall;
+    $('#verdict').innerHTML = gain>=0.03
+      ? `<div class="verdict good">Balancing helped: recall rose from ${pct(c.plain.recall)}% to ${pct(c.erf.recall)}%.</div>`
+      : `<div class="verdict amber">Honest answer: balancing did not clearly help on this data. That is a valid finding.</div>`;
+    return;
+  }
+  // ERF-CSRBoost vs the published CSRBoost on this run, plain model as context
+  const dRec=c.erf.recall-c.csrboost.recall, dPr=(c.erf.pr_auc||0)-(c.csrboost.pr_auc||0);
+  const wins=(c.folds>1 && c.wins_erf_vs_csr!==undefined)
+    ? ` It came out ahead of CSRBoost on AUC in <b>${c.wins_erf_vs_csr} of ${c.folds}</b> folds.` : '';
+  const ctx=`For context, the plain one-line model caught ${pct(c.plain.recall)}%.${wins}`;
+  const kind=verdictKind(r);
+  const deltas=`recall ${pct(c.csrboost.recall)}% to ${pct(c.erf.recall)}%, PR-AUC ${(c.csrboost.pr_auc||0).toFixed(2)} to ${(c.erf.pr_auc||0).toFixed(2)}`;
+  if(kind==='ahead')
+    $('#verdict').innerHTML=`<div class="verdict good"><b>ERF-CSRBoost</b> came out ahead of the published CSRBoost on this run (${deltas}). ${ctx}</div>`;
+  else if(kind==='behind')
+    $('#verdict').innerHTML=`<div class="verdict amber">On this run the published CSRBoost came out ahead of ERF-CSRBoost (${deltas}). Treat this as illustrative. ${ctx}</div>`;
+  else if(kind==='mixed')
+    $('#verdict').innerHTML=`<div class="verdict amber">Mixed result: ERF-CSRBoost and the published CSRBoost each led on one measure (${deltas}). ${ctx}</div>`;
+  else
+    $('#verdict').innerHTML=`<div class="verdict good">ERF-CSRBoost and the published CSRBoost performed about the same on this run (${deltas}). ${ctx}</div>`;
+}
+// One place decides what the comparison says, so the headline verdict and the nav chip cannot disagree.
+// Returns null (no comparison), 'balanced', 'helped', 'nolift' (no CSRBoost to compare with), or
+// 'ahead', 'behind', 'mixed', 'same' (ERF-CSRBoost against the published CSRBoost).
+function verdictKind(r){
+  const c=r.classify; if(!c||!c.erf) return null;
+  if(r.ir < 1.5) return 'balanced';
+  if(!c.csrboost) return (c.erf.recall-c.plain.recall)>=0.03 ? 'helped' : 'nolift';
+  const dRec=c.erf.recall-c.csrboost.recall, dPr=(c.erf.pr_auc||0)-(c.csrboost.pr_auc||0);
+  const up=dRec>=0.02||dPr>=0.02, down=dRec<=-0.02||dPr<=-0.02;
+  if(up&&!down) return 'ahead';
+  if(down&&!up) return 'behind';
+  if(up&&down) return 'mixed';
+  return 'same';
+}
+// Text and colour class of the chip next to the result links; the class matches the verdict box.
+function chipFor(r){
+  const k=verdictKind(r);
+  const text={balanced:'Already balanced',helped:'Balancing helped',nolift:'No clear lift',
+    ahead:'ERF-CSRBoost ahead',behind:'CSRBoost ahead',mixed:'Mixed result',same:'About the same'}[k]||'';
+  const cls=(k==='balanced'||k==='nolift'||k==='behind'||k==='mixed')?'amber':'good';
+  return {text,cls};
+}
+function renderLab(r){
+  const L=r.leakage_lab; if(!L){$('#labcard').classList.add('hidden');return;}
+  $('#labcard').classList.remove('hidden');
+  const d=L.delta_balanced_accuracy, caught=d>=0.005;
+  const banner=caught
+    ? `<div class="trap"><b>Leak found: balancing before the split.</b> The dataset was balanced first,
+        so synthetic copies of the test rows ended up in training. The model was then graded partly on
+        rows it had already seen, and the left-hand score is inflated because of it.</div>`
+    : `<div class="trap ok"><b>No inflation detected on this data.</b> The shortcut happened not to help
+        here, but it is still unsafe: it offers no guarantee, and on many datasets it quietly inflates
+        the score. The honest split is the one to trust.</div>`;
+  const lift=caught
+    ? `<div class="faked">Inflated by <b>+${d.toFixed(3)}</b> balanced accuracy that does not hold on unseen data.</div>` : '';
+  $('#lab').innerHTML=banner+`<div class="labgrid">
+    <div class="labc leaky"><div class="t">Leaky score</div><div class="s">balanced everything, then split</div><div class="big">${L.leaky.balanced_accuracy.toFixed(3)}</div></div>
+    <div class="labc honest"><div class="t">Honest score</div><div class="s">split first, judged on untouched rows</div><div class="big">${L.honest.balanced_accuracy.toFixed(3)}</div></div>
+    </div>`+lift+
+    `<div class="whymatter"><b>Why this matters:</b> the leaky number is the one that slips into a rushed
+     analysis. It looks good, then the model meets real unseen data and disappoints. Every other result
+     on this page is measured the honest way, on rows the models never saw during training.</div>`
+    + scanBlock(r.leakage_scan);
+}
+function scanBlock(s){
+  if(!s) return '';
+  const items=[];
+  items.push(s.dupes>0
+    ? `<div class="lkchk ${s.dupes_pct>=1?'warn':'ok'}"><b>${s.dupes} duplicate row${s.dupes===1?'':'s'} (${s.dupes_pct}%).</b>
+        Identical rows leak if they land on both sides of a train/test split.</div>`
+    : `<div class="lkchk ok"><b>No duplicate rows.</b> Nothing to leak across the split.</div>`);
+  items.push(s.proxies && s.proxies.length
+    ? `<div class="lkchk warn"><b>Possible proxy feature:</b> ${s.proxies.map(p=>`<b>${esc(p.column)}</b> (AUC ${p.auc.toFixed(2)})`).join(', ')}
+        predicts the label almost on its own. Check it is not a leaked or target-derived column.</div>`
+    : `<div class="lkchk ok"><b>No single-feature proxy.</b> No column predicts the label almost perfectly by itself.</div>`);
+  return `<div class="morechecks"><div class="mchead">More leak checks</div>${items.join('')}</div>`;
+}
+
+/* breakdown (hidden by default) */
+function confusion(y,p,t){let tp=0,fn=0,fp=0,tn=0;for(let i=0;i<y.length;i++){const pr=p[i]>=t?1:0;
+  if(y[i]===1){pr?tp++:fn++;}else{pr?fp++:tn++;}}return{tp,fn,fp,tn};}
+const mdiv=(a,b)=>b>0?a/b:0;
+function renderBreakdown(r){
+  const c=r.classify;
+  const P=c&&c.proba;
+  if(P){
+    $('#cmwrap').innerHTML=`
+      <div class="whatis"><b>What is being compared?</b> Three models, all judged on the same untouched
+        test rows. The <b>plain model</b> is the typical one-line approach: a standard Random Forest on
+        your original imbalanced data, class weights as its only help. <b>CSRBoost</b> is the published
+        IEEE method (Yadav et al., 2025), as replicated for this project. <b>ERF-CSRBoost</b> is an
+        experimental, unpublished extension of it: a bagged ensemble of 20 resampled random forests (not a
+        boosting method), adapted from the research implementation and not numerically identical to it.
+        The question to check: does the published method improve on the one-liner, and does the extension
+        improve on the published method?<br><br>
+        <b>Read any ERF-CSRBoost versus CSRBoost difference with care.</b> The three models do not have
+        equal capacity here (plain: one forest of 200 trees; CSRBoost: AdaBoost of 50 trees; ERF-CSRBoost:
+        1,000 trees), so a difference is not a controlled test of the method. The research behind
+        ERF-CSRBoost is an exploratory comparison on development datasets, not an independent evaluation.</div>
+      <div class="cmgrid" id="cmgrid"></div>
+      <div class="sliderbox"><label>Decision threshold <span class="tv" id="tval">0.50</span></label>
+        <input type="range" id="thr" min="0.05" max="0.95" step="0.01" value="0.5">
+        <div class="csub" id="thrnote" style="margin-top:6px"><b>Exploratory.</b> Moving this slider uses the
+          labelled held-out rows to recount hits and misses. The headline metrics and the verdict stay at 0.50.
+          The same threshold is applied to three models whose probabilities are calibrated differently, so a gap at
+          one threshold is not a ranking of the methods.</div>
+        <div class="tradeoff" id="tradeoff"></div></div>`;
+    if(P.subsampled){
+      const nrows=(P.y_test||[]).length.toLocaleString();
+      $('#thrnote').innerHTML+=` <b>Slider counts are based on a stratified sample of ${nrows} held-out rows</b>
+        (the file is large), so they will not match the full-data metrics table exactly.`;
+    }
+    $('#thr').addEventListener('input',()=>paintCM(+$('#thr').value)); paintCM(0.5);
+  } else $('#cmwrap').innerHTML='';
+  if(c&&c.erf){
+    const rows=[["recall","Recall"],["precision","Precision"],["f1","F1"],["balanced_accuracy","Balanced accuracy"],
+      ["pr_auc","PR-AUC"],["roc_auc","ROC-AUC"],["accuracy","Accuracy"]];
+    const p=c.plain,cs=c.csrboost,e=c.erf;
+    let h=`<table class="mx"><thead><tr><th>Metric</th><th>Plain model</th>${cs?'<th>CSRBoost</th>':''}<th>ERF-CSRBoost</th></tr></thead><tbody>`;
+    rows.forEach(([k,l])=>{ if(p[k]===undefined||e[k]===undefined)return;
+      const dim=k==='accuracy';
+      const ref=cs?cs[k]:p[k], d=e[k]-ref;   // ERF's chip = vs CSRBoost
+      const chip=dim?'':d>=0.005?`<span class="dchip up">+${d.toFixed(3)}</span>`:`<span class="dchip flat">${d>=0?'+':''}${d.toFixed(3)}</span>`;
+      h+=`<tr><td class="${dim?'dim':''}" title="${TIPS[k]||''}">${l}</td>`
+        +`<td class="${dim?'dim':''}">${p[k].toFixed(3)}</td>`
+        +(cs?`<td class="${dim?'dim':''}">${cs[k]!==undefined?cs[k].toFixed(3):'-'}</td>`:'')
+        +`<td class="${dim?'dim':''}">${e[k].toFixed(3)}${chip}</td></tr>`;});
+    h+=`</tbody></table>`;
+    if(cs) h+=`<div class="hint">The green chips on ERF-CSRBoost are its difference from CSRBoost on this run. The models differ in capacity, so this is a description of this run, not proof that the method is better.</div>`;
+    $('#mtable').innerHTML=h;
+  } else $('#mtable').innerHTML='';
+  $('#snip').textContent=r.snippet;
+  $('#copybtn').onclick=()=>{navigator.clipboard.writeText(r.snippet);$('#copybtn').textContent='Copied';setTimeout(()=>$('#copybtn').textContent='Copy',1200);};
+}
+function cmCard(title,sub,c,extra){return `<div class="cmcard ${extra||''}"><div class="t">${title}</div><div class="sub">${sub}</div><div class="cm">
+  <div class="cmc catch"><div class="v">${c.tp}</div><div class="l">Caught</div></div>
+  <div class="cmc miss"><div class="v">${c.fn}</div><div class="l">Missed</div></div>
+  <div class="cmc"><div class="v">${c.fp}</div><div class="l">False alarms</div></div>
+  <div class="cmc"><div class="v">${c.tn}</div><div class="l">Correctly ignored</div></div></div></div>`;}
+function paintCM(t){const P=R.classify.proba;$('#tval').textContent=t.toFixed(2);
+  const cp=confusion(P.y_test,P.plain,t);
+  const cc=P.csrboost?confusion(P.y_test,P.csrboost,t):null;
+  const ce=confusion(P.y_test,P.erf,t);
+  $('#cmgrid').innerHTML=cmCard('Plain model','standard Random Forest, original data, class weights',cp,'')
+    +(cc?cmCard('CSRBoost','the published method, as replicated for this project',cc,''):'')
+    +cmCard('ERF-CSRBoost','experimental extension of CSRBoost',ce,'hero');
+  const ref=cc||cp, refName=cc?'CSRBoost':'the plain model';
+  const dTP=ce.tp-ref.tp,dFP=ce.fp-ref.fp; let s=`At this threshold, ERF-CSRBoost vs ${refName}: `;
+  s+=dTP>0?`catches <b>${dTP} more</b> real case${dTP===1?'':'s'}`:dTP<0?`catches <b>${-dTP} fewer</b> real cases`:'catches the same number of real cases';
+  s+=dFP>0?`, and raises <b>${dFP} more</b> false alarms.`:dFP<0?`, and raises <b>${-dFP} fewer</b> false alarms.`:', with the same false alarms.';
+  $('#tradeoff').innerHTML=s;}
+
+function receiptText(r){
+  const pad=(s,n)=>String(s)+' '.repeat(Math.max(0,n-String(s).length));
+  const cnts=o=>o?Object.entries(o).map(([k,v])=>`${k}: ${v}`).join(', '):'n/a';
+  const m3=m=>m?`recall ${(m.recall).toFixed(3)}   PR-AUC ${(m.pr_auc||0).toFixed(3)}   ROC-AUC ${(m.roc_auc||0).toFixed(3)}`:'not run';
+  const c=r.classify||{}, L=r.leakage_lab;
+  const total=r.full_counts?Object.values(r.full_counts).reduce((a,b)=>a+b,0):'?';
+  const foldRun=!!(c.folds&&c.folds>1);
+  const folds=(c.folds&&c.folds>1)?`Validation: ${c.folds}-fold out-of-fold averaging.`
+                                   :`Validation: a single 75/25 split (demo mode).`;
+  const lines=[
+    'FIX YOUR DATASET: HONESTY RECEIPT',
+    'Generated: '+new Date().toISOString().slice(0,19).replace('T',' ')+' UTC',
+    ''.padEnd(60,'-'),
+    'DATASET',
+    '  Rows (total):     '+total,
+    '  Target column:    '+r.target,
+    '  Class balance:    '+(r.ir!=null?r.ir+':1':'?')+'   (counts: '+cnts(r.full_counts)+')',
+    '',
+    'PROTOCOL  (leakage-safe)',
+    ...(foldRun ? [
+      '  Split:            75/25 stratified, seed 42, done FIRST (downloadable files only)',
+      '  Balanced:         the training half only (downloadable balanced file)',
+      '  Scores:           pooled out-of-fold predictions over all rows (after the row cap).',
+      '                    Each row is scored only by models that did not train on it.',
+      '                    The downloadable 25% test split was NOT used for scoring.',
+    ] : [
+      '  Split:            75/25 stratified, seed 42, done FIRST',
+      '  Balanced:         the training half only',
+      '  Never touched:    the 25% test rows; every score below is measured on these',
+    ]),
+    '',
+  ];
+  if(L){
+    lines.push('LEAKAGE CHECK  (balanced accuracy)',
+      '  Leaky   (balance, then split):  '+L.leaky.balanced_accuracy.toFixed(3),
+      '  Honest  (split, then balance):  '+L.honest.balanced_accuracy.toFixed(3),
+      '  Inflation from the leak:        +'+(L.delta_balanced_accuracy).toFixed(3)+'   (does not hold on unseen data)','');
+  }
+  lines.push(foldRun?'RESULT ON HELD-OUT ROWS (OUT-OF-FOLD)':'RESULT ON THE UNTOUCHED TEST ROWS',
+    '  Plain baseline:      '+m3(c.plain),
+    '  CSRBoost (published):'+m3(c.csrboost),
+    '  ERF-CSRBoost (exp.): '+m3(c.erf),
+    '  '+folds,
+    '',
+    'NOTES',
+    '  - ERF-CSRBoost is an experimental, unpublished extension of CSRBoost: a',
+    '    bagged ensemble of 20 resampled random forests (not a boosting method).',
+    '    The app version is adapted from the research implementation and is not',
+    '    numerically identical to it.',
+    '  - The downloaded balanced file uses the CSRBoost-style balancing step.',
+    '  - The three models differ in capacity (plain 200 trees, CSRBoost AdaBoost of',
+    '    50 trees, ERF-CSRBoost 1,000 trees), so differences between them are not a',
+    '    controlled test of the method.',
+    foldRun?'  - Fold-averaged numbers come from one run on this file and are not research results.'
+           :'  - Single-split numbers are noisy and are not research results.',
+    ''.padEnd(60,'-'),
+    'fixyourdataset.fly.dev');
+  return lines.join('\n');
+}
+function renderDl(r){
+  $('#dltrain').onclick=()=>dl('balanced_train.csv',r.balanced_train_csv,'text/csv');
+  $('#dltest').onclick=()=>dl('test_untouched.csv',r.test_untouched_csv,'text/csv');
+  $('#dlreceipt').onclick=()=>dl('honesty_receipt.txt',receiptText(r),'text/plain');
+}
+function dl(name,text,type){const b=new Blob([text],{type}),u=URL.createObjectURL(b);
+  const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+
+boot();
+</script>
+</body>
+</html>
