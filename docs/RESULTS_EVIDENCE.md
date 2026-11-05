@@ -143,11 +143,16 @@ Notes that matter when reading the results:
   pattern is not explained.
 - **YEAST5 and YEAST5ERL.** 31 duplicate rows each. YEAST5ERL has only 5 positives, so each stratified
   test fold holds exactly one positive; AUC, AP and G-Mean are then computed from a single positive,
-  and F1 is 0 or 1 in every fold.
+  and F1 is 0 or 1 in every fold. The two files also hold the same 1,484 feature rows (section 3.5),
+  so they are not independent datasets either.
 - **GLASS.** The file has 196 rows (types 1, 2, 5, 6 and 7 only). The original UCI glass data have 214
-  rows. Whether this 196-row file is the glass dataset used by the CSRBoost paper is unresolved.
+  rows. Whether this 196-row file is the glass dataset used by the CSRBoost paper is unresolved. The
+  row counts and the comparability consequence are in section 3.5.
 - **CARGOOD and CARVGOOD** share identical feature rows and differ only in which class is positive,
   so they are not independent datasets. The effective number of independent datasets is below 15.
+- **Exact feature twins and shared feature collections.** Section 3.5 gives, for six datasets, how many
+  test rows of the first fold have a feature twin in training, and lists the task pairs that share
+  their whole feature set (CARGOOD with CARVGOOD, and YEAST5 with YEAST5ERL).
 - Several datasets are multi-class files collapsed to a binary task: PSDAS, ESR, SEED, WINE, GLASS.
 - The statement "all 15 datasets are the ones listed in the CSRBoost paper" comes from the research
   files. It was not checked against the paper's table.
@@ -180,7 +185,8 @@ balanced random forest is in the exploratory run (section 8), under a different 
 | Split | RepeatedStratifiedKFold, 5 splits, 20 repeats, random_state 42: 100 train and test folds per dataset. All four methods see identical folds within a dataset (each method has fold indices 0 to 99 for every dataset) |
 | Seeds | Splits 42. CSRBoost: 42 in every fold. ERF: 42 + 7919 b in every fold. RF-Raw and RF-BRF: 42 in every fold. The random components are therefore re-used identically across folds |
 | Preprocessing | StandardScaler fitted on the training fold only; clustering and SMOTE fitted on the scaled training fold only; no resampling of test rows |
-| SMOTE failure | An exception makes the runner silently use the retained rows without oversampling. The run does not record whether this ever happened |
+| SMOTE failure | `_apply_smote` (runner lines 448 to 455) catches any exception (line 454) and returns its input unchanged (line 455), so an exception makes the runner silently use the retained rows without oversampling. It is called for CSRBoost (line 575) and for every ERF bag (line 595). The run does not record whether this ever happened, and no per-fold fallback record exists, so it is not established whether a fallback occurred in the stored June record |
+| Other failures | A dataset whose loader raises is printed as `SKIP -- load error` and skipped (lines 716 to 718). A method that raises in a fold gets NaN for every metric (lines 740 to 742), and the summary means leave the NaN values out (line 767 and the `np.nanmean` calls from line 774). The NaN values are written to `fold_results.csv`, but the `ERROR` text is not. A finished run is therefore not proof of a complete experiment; the expected rows must be counted and checked for NaN. The stored June record has all of them: 6,000 rows, 15 datasets x 4 methods x 100 folds (0 to 99), no NaN (recomputed) |
 | Threshold | Fixed 0.5 for ACC, F1 and G-Mean. AUC and AP come from probabilities. There is no threshold selection |
 | Hyperparameters | No search in this run. All settings are fixed constants |
 | Aggregation | Per-fold metrics on the test fold; dataset value = unweighted mean over its 100 folds; global value = unweighted mean of the 15 dataset values (equal to the mean over all 1,500 pooled rows per method because each dataset has exactly 100 folds) |
@@ -193,6 +199,72 @@ loader fixes for some datasets, replacement of paper-reported baseline values by
 and earlier method candidates on the same data. The selection effect of that history cannot be
 quantified from the records. The four-way table is therefore an exploratory, development-set
 comparison with an untuned fixed configuration, not an independent final evaluation.
+
+### 3.5 Data quality: feature twins, shared feature collections and the GLASS file version
+
+These checks load the data files with the runner's loader logic and look at the feature matrices in
+memory. No model was fitted, the runner was not run, and no stored number changes. The check script
+is a scratch script that is not in this repository. Status of every figure in this section: **newly
+executed check** (recomputed from the data files).
+
+**Exact feature twins across train and test (one split).** A test row is counted when its full feature
+vector, with the class label ignored, also occurs among the training rows. The counts below are for
+the first fold only (fold 0 of `fold_results.csv`: the first split of `RepeatedStratifiedKFold` with
+5 splits, 20 repeats and `random_state` 42, on the loaded feature matrix before scaling). This is a
+diagnostic for one split, not an average over the 100 evaluations.
+
+| Dataset | Rows | Features | Rows that repeat an earlier feature vector | Test rows with a feature twin in training | Test rows in that fold | Share |
+|---|---|---|---|---|---|---|
+| ESDRP | 520 | 16 | 269 | 79 | 104 | 76.0% |
+| FLARE-F | 1,066 | 11 | 779 | 177 | 214 | 82.7% |
+| DCCC | 30,000 | 23 | 56 | 20 | 6,000 | 0.3% |
+| ILPD | 583 | 10 | 13 | 4 | 117 | 3.4% |
+| YEAST5 | 1,484 | 8 | 31 | 7 | 297 | 2.4% |
+| YEAST5ERL | 1,484 | 8 | 31 | 7 | 297 | 2.4% |
+
+- **Relation to section 3.1.** The 269 and 760 duplicate rows of ESDRP and FLARE-F in section 3.1
+  count a row as a duplicate only if its class also matches. Ignoring the class, 779 FLARE-F rows
+  repeat an earlier feature vector (ESDRP stays at 269). The review-pass averages over all 100 folds
+  in section 3.1 (68.7 and 80.6 percent) agree with the average share of test rows that have a
+  training twin of the same class, recomputed here as 68.65 percent for ESDRP and 80.64 percent for
+  FLARE-F; ignoring the class, the FLARE-F average over the 100 folds is 82.74 percent. In the first
+  fold, 171 of the 177 FLARE-F twins and all 79 ESDRP twins have a training twin of the same class.
+- **Conflicting labels.** FLARE-F has 19 feature patterns that occur with both classes, and DCCC has
+  21. ESDRP, ILPD, YEAST5 and YEAST5ERL have none.
+- **Exact-feature overlap is not resampling before splitting.** The runner fits the scaler on the
+  training fold and passes only training rows to clustering and SMOTE (section 3.3), so no learned step
+  sees a test row. Feature twins are a property of the original data: a test row can still have an
+  identical copy among the training rows, and the score on such a row can reflect memorisation of
+  the training copy rather than generalisation. This is why duplicates can inflate test scores
+  (section 7, item 4).
+- **The saved results were not deduplicated.** Every stored number includes the twins. Removing or
+  grouping them would change the experiment, not repair a value, so nothing was done here. A study of
+  generalisation would have to choose a duplicate or group policy first. The exploratory 18-dataset
+  run (section 8) uses the same loaders for 13 datasets, so the same twins are present; the five added
+  datasets were not checked.
+
+**Tasks that share a whole feature collection.** Compared as sorted feature rows after loading with
+the runner's loader logic:
+
+| Task pair | Rows | Features | Same rows? | Positives |
+|---|---|---|---|---|
+| CARGOOD and CARVGOOD | 1,728 | 6 | Yes, same order | 69 and 65 |
+| YEAST5 and YEAST5ERL | 1,484 | 8 | Yes, file order differs | 44 and 5 |
+
+The 15 task labels are therefore not 15 separate feature collections: two pairs differ only in the
+target label. No other two tasks have the same number of rows (section 3.1), so these are the only
+candidate pairs. The dataset-level tests of sections 4.3 and 8.3 still treat the tasks as
+independent, so the effective number of independent datasets is below 15 (and below 18 in section 8).
+Section 4.3 shows a sensitivity check without CARVGOOD; the equivalent check without one member of
+the YEAST5 pair was not computed.
+
+**GLASS file version.** The selected `glass.csv` has 196 rows and nine features: type 1 has 69 rows,
+type 2 76, type 5 13, type 6 9 and type 7 29 (class counts recomputed from the file). Type 3 is absent.
+A canonical 214-row file of the UCI glass data exists in the author's research folder (it is not part of this
+repository): there type 1 has 70 rows, type 3 has 17 and the other counts are the same (read from
+that file). The positive class used here (type 7) has 29 rows in both files, but the negative side
+has 167 rows in the selected file and 185 in the canonical one. A rerun on the 214-row file would
+therefore be a different experiment, not a reproduction of the stored GLASS rows. Record the exact file hash (section 3.1) when comparing GLASS results.
 
 ## 4. Recomputed results (June four-way record)
 
@@ -274,7 +346,8 @@ are exactly zero; with the two zeros dropped the exact p is 0.0081.
   (1,000 trees for ERF, 50 stumps for CSRBoost, 100 trees for RF-Raw and RF-BRF; no equal-capacity
   comparison was run in this record). The 15 datasets were also used while the method was developed,
   so they are not a fresh test set. The unit is the dataset, with N = 15, and the datasets are not
-  independent (CARGOOD and CARVGOOD share features; some have duplicate rows).
+  independent (CARGOOD and CARVGOOD share features, and so do YEAST5 and YEAST5ERL; some have duplicate
+  rows and test rows with exact feature twins in training, section 3.5).
 - The result is borderline and not robust to removing questionable datasets:
 
 | Subset | ERF minus CSRBoost mean difference | Datasets higher | Wilcoxon p |
@@ -286,7 +359,8 @@ are exactly zero; with the two zeros dropped the exact p is 0.0081.
 | Without YEAST5ERL and CB | +0.0113 | 10 / 13 | 0.0574 |
 | Without CARVGOOD (shares features with CARGOOD) | +0.0122 | 11 / 14 | 0.0419 |
 
-- CARGOOD and CARVGOOD share features, so N = 15 overstates independence.
+- CARGOOD and CARVGOOD share features, and so do YEAST5 and YEAST5ERL (section 3.5), so N = 15
+  overstates independence.
 
 ### 4.4 Per-dataset paired results over the 100 folds
 
@@ -392,7 +466,11 @@ dataset-level tests are not significant (p 0.7615 and 0.4543, section 4.5).
 | The June record equals the April run except for the ESR, DCCC and CB rows | Recomputed | section 2.1 |
 | The thesis two-way file equals the CSRBoost and ERF-CSRBoost rows of the June record | Recomputed | section 2.1 |
 | ESDRP and FLARE-F contain 269 and 760 duplicate rows | Newly executed check (counted from the files) | section 3.1 |
-| 68.7 percent (ESDRP) and 80.6 percent (FLARE-F) of test rows have a training twin | Newly executed check by a review pass; not repeated here | section 3.1 |
+| 68.7 percent (ESDRP) and 80.6 percent (FLARE-F) of test rows have a training twin | Newly executed check by a review pass; recomputed in section 3.5 (68.65 and 80.64 percent for twins of the same class) | sections 3.1 and 3.5 |
+| First fold: 79 of 104 ESDRP, 177 of 214 FLARE-F, 20 of 6,000 DCCC, 4 of 117 ILPD, 7 of 297 YEAST5 and 7 of 297 YEAST5ERL test rows have a feature twin in training; FLARE-F has 19 and DCCC 21 feature patterns with conflicting labels | Newly executed check (loaders only, no model fitted); a one-split diagnostic, not an average. The saved results were not deduplicated | section 3.5 |
+| CARGOOD and CARVGOOD, and YEAST5 and YEAST5ERL, each share an identical set of feature rows | Newly executed check (sorted feature rows compared). Dataset-level tests still treat the tasks as independent | section 3.5 |
+| The selected GLASS file has 196 rows (type 3 absent, type 1 has 69); the original UCI file has 214 | Newly executed check on the selected file; the 214-row counts were read from the canonical file in the author's research folder, which is not part of this repository. A rerun on 214 rows would not be the same experiment | section 3.5 |
+| A SMOTE exception makes the runner fall back silently; load errors are skipped and metric errors become NaN | Read from code (lines 448 to 455, 716 to 718, 740 to 742). Whether a fallback occurred in the stored June record is not established; the record has all 6,000 expected rows and no NaN (recomputed) | section 3.3 |
 | The June ESR and DCCC reruns reproduce the 25 April runs, not the 28 April run | Historical artifact, unverified here; cause unresolved | section 2.1 |
 | The April run took about 10 hours | Historical artifact (run log); not checkable from this repository | section 2.2 |
 | Library versions of the runs | Unresolved: not recorded | section 2.1 |
@@ -410,12 +488,15 @@ dataset-level tests are not significant (p 0.7615 and 0.4543, section 4.5).
    The only tree-count-matched comparison is the exploratory run's 1,000-tree balanced random forest
    (section 8), under a different protocol, and it shows no advantage for ERF-CSRBoost.
 3. Fixed 0.5 threshold. Accuracy, F1 and G-Mean depend on calibration.
-4. Duplicate rows (ESDRP, FLARE-F, and 31 in each YEAST5 file) can inflate test scores.
+4. Duplicate rows (ESDRP, FLARE-F, and 31 in each YEAST5 file) can inflate test scores. In the first
+   fold, 79 of 104 ESDRP test rows and 177 of 214 FLARE-F test rows have an exact feature twin in the
+   training rows (section 3.5, a one-split diagnostic). The saved results were not deduplicated.
 5. CB: the positive class was corrected from the larger to the smaller class in the June record. The
    April run (earlier run) used the larger class.
-6. The GLASS file has 196 rows, not the 214 of the original UCI data.
-7. CARGOOD and CARVGOOD share features. YEAST5ERL has 5 positives. The effective number of
-   independent datasets is below 15.
+6. The GLASS file has 196 rows, not the 214 of the original UCI data. A rerun on the 214-row file
+   would be a different experiment (section 3.5).
+7. CARGOOD and CARVGOOD share their whole feature set, and so do YEAST5 and YEAST5ERL. YEAST5ERL has
+   5 positives. The effective number of independent datasets is below 15.
 8. The June record's ESR and DCCC rows agree with the 25 April runs and not with the 28 April run of
    the same datasets, for a reason that was not established. Bit-for-bit reproduction is not promised.
 9. Python and library versions of the runs were not recorded. Small datasets reproduce exactly across
@@ -553,7 +634,7 @@ By group (means of the dataset differences, no test run on a group):
   competing model has ERF-CSRBoost's tree count. No comparison against a boosted model of equal
   capacity, and no ablation of ERF-CSRBoost's parts, was run.
 - **Exploratory and uncorrected.** One run, six displayed tests with no multiplicity correction, p-values
-  that treat the 18 datasets as independent (CARGOOD and CARVGOOD share features; section 3.1) and a
+  that treat the 18 datasets as independent (CARGOOD and CARVGOOD share features, as do YEAST5 and YEAST5ERL; sections 3.1 and 3.5) and a
   protocol that was fixed by the author. A small p-value here is a description of this run, not a
   confirmation.
 - **Not independent for 13 of the 18 datasets.** The 13 datasets of the 15-dataset record were used

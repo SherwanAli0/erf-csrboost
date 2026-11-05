@@ -81,7 +81,12 @@ Checked during release preparation (read-only, no training):
   not evidence of a better method. The summary files of the June and April records recompute from their fold records.
   The June record equals the April run on 12 of 15 datasets row for row, and the exploratory file
   recomputes to the tables in section 8 of the evidence document.
-- The runner's paths were read from the code (sections 3 and 5).
+- The feature twins, the shared feature sets and the GLASS row counts of section 4 were recomputed
+  by loading the data files with the runner's loader logic, copied into a separate scratch script
+  that is not part of this repository. The runner module was not imported or run and no model was
+  fitted. The June record has all 6,000 expected rows (15 datasets x 4 methods x 100 folds) and no
+  missing values (recomputed).
+- The runner's paths and its error handling (section 6) were read from the code (sections 3 and 5).
 
 **Not checked:** that the script runs at all in a fresh environment (it was never executed here),
 that it runs with the library versions in `../requirements.txt`, that an unmodified download of each
@@ -143,9 +148,26 @@ Important caveats about the data:
   214-row UCI file). Compare the file hashes in `../docs/RESULTS_EVIDENCE.md` section 3.1 if in doubt.
 - If a data file is missing or fails to load, the runner prints `SKIP -- load error` for that
   dataset and carries on with the next one. After a run, check that `fold_results.csv` has 100 rows
-  per dataset and method.
+  per dataset and method and no NaN values (section 6).
 - CB, ESDRP, FLAREF and others have properties (class polarity, duplicate rows) that matter for the
   results; see `../docs/RESULTS_EVIDENCE.md` section 3.
+- Some tasks share a whole feature collection. CARGOOD and CARVGOOD hold the same 1,728 feature rows
+  (six features) and YEAST5 and YEAST5ERL hold the same 1,484 feature rows (eight features, in a
+  different file order); in each pair only the target label differs (compared as sorted feature rows,
+  recomputed). The 15 task labels are therefore not 15 separate feature collections, and the
+  dataset-level tests still treat the tasks as independent.
+- Exact feature twins across train and test. In the first fold of the runner's splitter
+  (`RepeatedStratifiedKFold`, 5 splits, 20 repeats, `random_state` 42; lines 726 to 727 of the runner),
+  the number of test rows whose full feature vector, whatever its class, also occurs in the training
+  rows is 79 of 104 for ESDRP, 177 of 214 for FLAREF, 20 of 6,000 for DCCC, 4 of 117 for ILPD, 7 of
+  297 for YEAST5 and 7 of 297 for YEAST5ERL (all recomputed). This is a one-split diagnostic, not an
+  average over the 100 evaluations. FLAREF has 19 feature patterns that occur with both classes and
+  DCCC has 21. Exact-feature overlap is different from resampling before splitting: the runner fits
+  the scaler and the resampling on the training fold only, and the original data still contain the
+  twins. The saved results were not deduplicated. Details: `../docs/RESULTS_EVIDENCE.md` section 3.5.
+- GLASS: the selected file has 196 rows (type 3 absent, type 1 has 69 rows). The canonical UCI file has
+  214 rows (type 1 has 70, type 3 has 17); it is not part of this repository. A rerun on the 214-row
+  file would not be the same experiment as the stored GLASS rows.
 
 ## 5. Run
 
@@ -179,6 +201,25 @@ The runner writes only to `research/outputs/comparison_<YYYYmmdd_HHMMSS>/`:
 `dataset_summary.csv`. A search of the script for file writes finds only these two `to_csv` calls and
 the creation of the `outputs` folders; everything else goes to the console. It does not write into
 `results/` and does not touch the stored records. `outputs/` is ignored by Git.
+
+**Behaviour on errors (read from the code, not executed).** Three places in the runner turn a failure
+into something that does not stop the run:
+
+- `_apply_smote` (lines 448 to 455) wraps the SMOTE call in `try`, catches any exception (line 454)
+  and returns its input unchanged (line 455). A resampling failure therefore becomes a silent
+  fallback to the retained rows without oversampling. It is called for CSRBoost (line 575) and for
+  each ERF-CSRBoost bag (line 595). Nothing records whether the fallback was used, and no per-fold
+  fallback record exists, so it was not established whether a fallback occurred in the stored June
+  record.
+- A dataset whose loader raises is printed as `SKIP -- load error` and skipped (lines 716 to 718); a
+  key without a loader is skipped the same way (lines 707 to 710).
+- A method that raises in a fold gets NaN for all five metrics (lines 740 to 742). The NaN values are
+  written to `fold_results.csv`, the `ERROR` text is not, and the summary means leave the NaN values
+  out (line 767, and the `np.nanmean` calls from line 774).
+
+A run that finishes is therefore not proof of a complete experiment. After a run, count the rows for
+each dataset and method (100 expected) and look for NaN. The stored June record passes both checks:
+6,000 rows, 15 datasets x 4 methods x 100 folds (0 to 99), no NaN (recomputed).
 
 ## 7. Comparing a fresh run with the stored records
 

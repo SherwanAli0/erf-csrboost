@@ -207,6 +207,12 @@ preparation, and no training was run):
   DCCC and CB rows of the June record come from reruns with the corrected script included here.
   Running the selected script on CB gives the corrected CB values (positive class R), which match the
   June record, not the April run (section 5).
+- The runner does not stop on some failures: a dataset that fails to load is logged and skipped, a
+  method that raises in a fold is stored as NaN and left out of the summary means, and a failed SMOTE
+  call silently falls back to the rows without oversampling (`research/README.md`, section 6). A run
+  that finishes is therefore not proof of a complete experiment: check that `fold_results.csv` has 100
+  rows per dataset and method and no NaN. The stored June record has all 6,000 expected rows and no
+  NaN; whether a SMOTE fallback occurred in it was not established.
 - The exploratory 18-dataset run in section 5 was made with a script that is not included. It cannot
   be reproduced from this repository.
 - To compare with stored numbers, use the files in `research/results/` (section 5) and the check in
@@ -228,9 +234,13 @@ developing the method, with a fixed 0.5 threshold and untuned baselines. ERF-CSR
 bags of 50-tree forests (1,000 trees), against 50 decision stumps for CSRBoost and 100 trees for
 the random forest baselines; no equal-capacity comparison was run on these 15 datasets. The
 "CSRBoost" here is a local re-implementation, not the authors' code. Several datasets contain
-duplicate rows (notably ESDRP and FLARE-F), CARGOOD and CARVGOOD share features, and YEAST5ERL has
-only 5 positives, so the effective number of independent datasets is below 15. This is not an
-independent evaluation and does not establish a general improvement.
+duplicate rows (notably ESDRP and FLARE-F), CARGOOD and CARVGOOD share features, YEAST5 and YEAST5ERL
+share their whole feature set (different target labels), and YEAST5ERL has only 5 positives, so the 15
+task labels are not 15 separate feature collections and the effective number of independent datasets
+is below 15. Many test rows also have an exact feature twin in the training rows: in the first fold of
+the runner's splitter, 79 of 104 ESDRP test rows and 177 of 214 FLARE-F test rows (a one-split
+diagnostic, `docs/RESULTS_EVIDENCE.md`, section 3.5). This is not an independent evaluation and does
+not establish a general improvement.
 
 Mean AUC by dataset (mean over 100 folds):
 
@@ -271,9 +281,10 @@ What these records show, with the dataset as the unit of analysis (N = 15):
   capacity: 1,000 trees for ERF-CSRBoost, 50 decision stumps for CSRBoost and 100 trees for the
   random forest baselines, and no equal-capacity comparison was run on these 15 datasets. (2) The 15
   datasets were also used while the method was developed, so they are not a fresh test set. (3) The
-  test treats the datasets as independent, but CARGOOD and CARVGOOD share features and some datasets
-  contain duplicate rows, so the effective N is below 15. (4) The Holm family of three comparisons
-  (ERF-CSRBoost against each other method) was chosen after seeing the data. It gives 0.060 for the
+  test treats the datasets as independent, but CARGOOD and CARVGOOD share features, YEAST5 and
+  YEAST5ERL share features, and some datasets contain duplicate rows, so the effective N is below 15.
+  (4) The Holm family of three comparisons (ERF-CSRBoost against each other method) was chosen after
+  seeing the data. It gives 0.060 for the
   CSRBoost comparison; with all six pairwise comparisons the Holm-adjusted p is 0.121. The result is
   borderline: it is p = 0.057 if CB and YEAST5ERL are removed. Clear per-dataset gains over CSRBoost,
   with agreement across folds, are on PSDAS, ESR, DCCC and CARGOOD (and on ESDRP, which is
@@ -386,6 +397,15 @@ The main ones, with the full list in `docs/LIMITATIONS_AND_VERIFICATION.md`:
 - Exploratory results on development datasets, unequal model capacity, fixed threshold, duplicate
   rows in some datasets, and library versions of the stored runs not recorded. The 18-dataset run is
   uncorrected, uses a different protocol and cannot be reproduced from this repository (no script).
+- Data quality of the research datasets: test rows with an exact feature twin in the training rows
+  (first fold: 79 of 104 for ESDRP, 177 of 214 for FLARE-F), tasks that share a whole feature set
+  (CARGOOD with CARVGOOD, YEAST5 with YEAST5ERL), so the 15 task labels are not 15 separate feature
+  collections while the dataset-level tests treat them as independent. The saved results were not
+  deduplicated. The GLASS file has 196 rows, not the 214 of the original UCI data, so a rerun on the
+  214-row file would not be the same experiment (`docs/LIMITATIONS_AND_VERIFICATION.md`).
+- A finished run of the research runner is not proof of a complete experiment (failures are skipped or
+  stored as NaN, and a failed SMOTE call falls back silently); whether a fallback occurred in the stored
+  June record was not established.
 - The app is not numerically equal to the research ERF and uses a single split by default.
 - The tests cover synthetic and bundled data and a set of messy-input cases; browser rendering of
   some screens, the live deployment beyond a health request, and the documented research command

@@ -23,8 +23,9 @@ exact check from the repository), **not verified**.
 - On the 15 datasets ERF-CSRBoost is not distinguishable from a balanced random forest on AUC, and
   its mean G-Mean at 0.5 is lower than both CSRBoost and RF-BRF.
 - Several datasets contain duplicate rows (ESDRP, FLARE-F), CARGOOD and CARVGOOD share features,
-  and YEAST5ERL has 5 positives. The CB positive class was corrected from the larger to the smaller
-  class in the June record; the April run, kept as the earlier run, used the larger class.
+  YEAST5 and YEAST5ERL share their whole feature set, and YEAST5ERL has 5 positives. The CB positive
+  class was corrected from the larger to the smaller class in the June record; the April run, kept as
+  the earlier run, used the larger class. Data quality is described in more detail below.
 - The Python and library versions of the stored runs were not recorded. The June ESR and DCCC rows
   agree with the 25 April runs and not with the 28 April run, for a reason that was not established.
   Bit-for-bit reproduction is not promised.
@@ -37,6 +38,55 @@ exact check from the repository), **not verified**.
 - The CSRBoost used for comparison is a local re-implementation, not the authors' code, and ERF's
   clustering step (MiniBatchKMeans, no class-redefinition guard) is "CSRBoost-style", not identical
   to the published step.
+
+### Data quality and runner behaviour in the research record
+
+These points concern the stored June record and the runner. None of them changes a number: they
+limit what the numbers can be taken to show. Full tables and the status of each figure are in
+`RESULTS_EVIDENCE.md`, section 3.5.
+
+- **Exact feature twins between training and test rows.** Many test rows have an identical feature
+  vector in the training rows. The counts below are for the first fold only (the first split of the
+  runner's `RepeatedStratifiedKFold`: 5 splits, 20 repeats, `random_state` 42). They are a
+  one-split diagnostic, not an average over the 100 evaluations. A twin is counted whatever its
+  class label.
+
+  | Dataset | Test rows with a feature twin in training | Test rows in that fold |
+  |---|---:|---:|
+  | ESDRP | 79 | 104 |
+  | FLARE-F | 177 | 214 |
+  | DCCC | 20 | 6,000 |
+  | ILPD | 4 | 117 |
+  | YEAST5 | 7 | 297 |
+  | YEAST5ERL | 7 | 297 |
+
+  FLARE-F has 19 feature patterns that occur with both classes, and DCCC has 21. All of these figures
+  were recomputed during release preparation (loaders only, no model fitted; the scratch script is
+  not in this repository), so their status is "newly executed".
+- **Twins are not resampling before splitting.** The runner fits the scaler on the training fold and
+  gives only training rows to clustering and SMOTE (read from code), so no learned step sees a test
+  row. That is a separate matter from the original data containing train/test feature twins, which
+  remain whatever the pipeline does. The twins can inflate test scores, and the share of affected test
+  rows is largest on ESDRP and FLARE-F. The saved results were not deduplicated, and no deduplicated or group-aware rerun exists.
+- **Tasks that share a feature collection.** CARGOOD and CARVGOOD hold the same 1,728 feature rows
+  (six features), and YEAST5 and YEAST5ERL hold the same 1,484 feature rows (eight features); in each
+  pair only the target label differs. The 15 task labels are therefore not 15 separate feature
+  collections, while the dataset-level tests (Wilcoxon, Friedman) still treat the tasks as
+  independent.
+- **SMOTE failure is silent.** The runner's `_apply_smote` (lines 448 to 455 of
+  `research/scripts/comparison_rf_csrboost_erf.py`) catches any exception and returns its input, so a
+  resampling failure becomes a silent fallback to the retained rows without oversampling. It is
+  called for CSRBoost and for each ERF bag. The run keeps no per-fold fallback record, so it was not
+  established whether a fallback occurred in the stored June record.
+- **A finished run is not proof of a complete experiment.** A dataset whose loader fails is printed
+  as `SKIP -- load error` and skipped (lines 716 to 718); a method that raises in a fold is stored as
+  NaN (lines 740 to 742) and left out of the summary means. Count the rows and look for NaN after a
+  run. The stored June record is complete: 6,000 rows, 15 datasets x 4 methods x 100 folds, no NaN
+  (recomputed).
+- **GLASS file version.** The selected file has 196 rows (type 3 absent, type 1 has 69 rows). The
+  canonical UCI file has 214 rows (type 1 has 70, type 3 has 17). A rerun on the 214-row file would
+  not be the same experiment: record the file hash and the subset definition when comparing GLASS
+  results.
 
 ### The web application
 
@@ -108,6 +158,7 @@ Checked on Windows 11. Linux and macOS were not tested.
 | Landing-page preview numbers | See "Landing-page preview numbers" below | Reproduced | Newly executed |
 | Local server | `PORT=8631 python backend/server.py`, then `GET /healthz`, `GET /`, `HEAD /`, `GET /api/samples` | 200, 200 (the page body of the committed `frontend/index.html`, 66,506 bytes), 200, sample list returned | Newly executed with the environment's interpreter. The literal `py -3.11 backend/server.py` (Windows launcher) was not run against a global interpreter |
 | Live app | `GET https://fixyourdataset.fly.dev/healthz` | 200 | Newly executed (one read-only request) |
+| Feature twins, shared feature sets, GLASS counts | An isolated scratch script that copies the runner's loader logic (the runner module was not imported or run), loads the data files, builds the first split of the runner's splitter and compares feature rows in memory | First-fold twin counts of the six datasets above, 19 and 21 conflicting feature patterns, identical feature rows in CARGOOD and CARVGOOD and in YEAST5 and YEAST5ERL, 196 GLASS rows with the class counts given above, complete June record (6,000 rows, no NaN). Details: `RESULTS_EVIDENCE.md`, section 3.5 | Newly executed, with a local Python 3.11 environment rather than the fresh virtual environment above. No model was fitted. The scratch script is not in this repository |
 | Datasets and CSV | recomputation of the result tables from the June four-way record and of the exploratory run's tables, sample label counts, sample row matching | See `RESULTS_EVIDENCE.md` and `../samples/README.md` | Newly executed |
 
 ### Landing-page preview numbers
@@ -176,6 +227,12 @@ branch. The fixes on this branch touch only the items marked "fixed" below.
 - The documented research command (`research/scripts/comparison_rf_csrboost_erf.py`) was read from
   code but was not executed during release preparation, and no training was run. The 10-hour full run
   and the smaller invocations in `../README.md` are untested here.
+- Whether a SMOTE fallback (`_apply_smote`, lines 448 to 455 of the runner) happened in the stored
+  June record. No per-fold record exists. Likewise, the effect of the feature twins on any stored
+  number: no deduplicated or group-aware evaluation was run.
+- Feature twins and conflicting-label patterns of the five datasets added in the exploratory run, and
+  of the datasets not listed in the first-fold table (PSDAS, ESR, BCW, CB, SEED, WINE, GLASS, CARGOOD,
+  CARVGOOD).
 - Reproduction of the exploratory 18-dataset run: not possible from this repository (script, data
   and library versions are not included), and the stored script is not shown to be the exact text that
   produced every dataset.
