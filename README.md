@@ -11,7 +11,7 @@ The numbers below are an exploratory comparison with stated limits.
 - Licences: MIT for code, CC BY 4.0 for original documentation and result files, with third-party
   exceptions (section 7).
 
-Contents: [1 ERF-CSRBoost](#1-what-erf-csrboost-is) | [2 App and runner](#2-what-the-app-implements-and-how-it-differs-from-the-research-runner) | [3 Run the app](#3-run-the-app-locally) | [4 Run the research runner](#4-run-the-research-runner-and-obtain-the-data) | [5 Results](#5-results) | [6 Uploads and server state](#6-what-happens-to-uploaded-files-and-server-state) | [7 Files and licences](#7-files-and-licences) | [8 Limitations](#8-limitations) | [9 Audit](#9-relationship-to-the-audit) | [10 Citation](#10-citation)
+Contents: [1 ERF-CSRBoost](#1-what-erf-csrboost-is) | [2 App and runner](#2-what-the-app-implements-and-how-it-differs-from-the-research-runner) | [3 Run the app](#3-run-the-app-locally) | [4 Run the research runner](#4-run-the-research-runner-and-obtain-the-data) | [5 Results](#5-results) | [6 Uploads and server state](#6-what-happens-to-uploaded-files-and-server-state) | [7 Files and licences](#7-files-and-licences) | [8 Limitations](#8-limitations) | [9 Audit](#9-relationship-to-the-audit) | [10 Citation](#10-citation) | [11 Provenance](#11-provenance-of-this-repository) | [Acknowledgements](#acknowledgements)
 
 ## 1. What ERF-CSRBoost is
 
@@ -173,7 +173,7 @@ that a download is the same file the stored results used.
 | `research/15_FLARE-F/flare-F.dat` | Solar Flare, class F (FLAREF) | KEEL | No terms stated by KEEL |
 
 UCI datasets are on https://archive.ics.uci.edu/ (search by name). The KEEL files are processed
-variants of UCI data, and the UCI licence is not assumed to cover them. Details and caveats are in
+versions of UCI data, and the UCI licence is not assumed to cover them. Details and caveats are in
 `THIRD_PARTY_NOTICES.md`. Which exact file versions and label encodings the stored run used is
 recorded in `docs/RESULTS_EVIDENCE.md`.
 
@@ -202,37 +202,45 @@ preparation, and no training was run):
   agreement with the stored numbers is not promised. Small datasets reproduced exactly between two
   of the author's runs; the two largest (ESR and DCCC) differed slightly, for a reason that was not
   established.
-- The stored results come from an earlier version of this script. The loaders were corrected
-  afterwards (ESR and DCCC paths, and the Sonar class polarity). Running the selected script on CB
-  gives the corrected CB values, not the April ones (section 5).
+- The April run was produced by an earlier version of this script, whose text was not preserved. The
+  loaders were corrected afterwards (ESR and DCCC paths, and the Sonar class polarity), and the ESR,
+  DCCC and CB rows of the June record come from reruns with the corrected script included here.
+  Running the selected script on CB gives the corrected CB values (positive class R), which match the
+  June record, not the April run (section 5).
+- The exploratory 18-dataset run in section 5 was made with a script that is not included. It cannot
+  be reproduced from this repository.
 - To compare with stored numbers, use the files in `research/results/` (section 5) and the check in
   `docs/RESULTS_EVIDENCE.md`, section 10.
 
 ## 5. Results
 
-**Which numbers are which.** The tables below are a **historical artifact**: a run from 28 April
-2026 (run `comparison_20260428_141315`, 15 datasets x 4 methods x 100 folds = 6,000 records) that was
-**recomputed** here from its saved per-fold records. Nothing was retrained for this repository. The
-records are in `research/results/comparison_20260428_141315/`.
+**Which numbers are which.** The headline tables below are the **June four-way record**: 15 datasets x
+4 methods x 100 folds = 6,000 records, the record behind the author's graduation thesis tables. It
+was **recomputed** here from its saved per-fold records. It is the 28 April 2026 run
+(`comparison_20260428_141315`, kept in `research/results/` as the earlier run) with the rows of three
+datasets, ESR, DCCC and CB, replaced by June 2026 reruns; for CB the positive class was corrected from
+the larger class (M) to the smaller class (R). Nothing was retrained for this repository. The records
+are in `research/results/comparison_june2026_four_way/`. A separate exploratory run on 18 datasets is
+described at the end of this section; it is a supplement, not the headline.
 
 **Read these limits first.** It is an exploratory comparison on 15 datasets that were also used while
 developing the method, with a fixed 0.5 threshold and untuned baselines. ERF-CSRBoost averages 20
 bags of 50-tree forests (1,000 trees), against 50 decision stumps for CSRBoost and 100 trees for
-the random forest baselines; no equal-capacity comparison was run. The "CSRBoost" here is a local
-re-implementation, not the authors' code. Several datasets contain duplicate rows (notably ESDRP and
-FLARE-F), CB uses its larger class as the positive class in this run, and CARGOOD and CARVGOOD share
-features, so the effective number of independent datasets is below 15. This is not an independent
-evaluation and does not establish a general improvement.
+the random forest baselines; no equal-capacity comparison was run on these 15 datasets. The
+"CSRBoost" here is a local re-implementation, not the authors' code. Several datasets contain
+duplicate rows (notably ESDRP and FLARE-F), CARGOOD and CARVGOOD share features, and YEAST5ERL has
+only 5 positives, so the effective number of independent datasets is below 15. This is not an
+independent evaluation and does not establish a general improvement.
 
 Mean AUC by dataset (mean over 100 folds):
 
 | Dataset | CSRBoost | ERF-CSRBoost | RF-Raw | RF-BRF |
 |---|---|---|---|---|
 | PSDAS | 0.7601 | 0.8212 | 0.8081 | 0.8134 |
-| ESR | 0.9776 | 0.9960 | 0.9952 | 0.9946 |
-| DCCC | 0.7631 | 0.7710 | 0.7637 | 0.7727 |
+| ESR | 0.9777 | 0.9960 | 0.9952 | 0.9946 |
+| DCCC | 0.7630 | 0.7710 | 0.7637 | 0.7727 |
 | BCW | 0.9922 | 0.9911 | 0.9897 | 0.9906 |
-| CB (larger class positive) | 0.9028 | 0.9362 | 0.9276 | 0.9243 |
+| CB | 0.9049 | 0.9319 | 0.9276 | 0.9278 |
 | ESDRP (duplicate rows) | 0.9753 | 0.9984 | 0.9985 | 0.9983 |
 | ILPD | 0.7276 | 0.7537 | 0.7433 | 0.7511 |
 | GLASS (196-row file) | 0.9514 | 0.9759 | 0.9755 | 0.9741 |
@@ -248,42 +256,85 @@ Global means (mean of the 15 dataset means):
 
 | Method | ACC | AUC | F1 | AP | G-Mean |
 |---|---|---|---|---|---|
-| CSRBoost (live) | 0.8951 | 0.9265 | 0.7262 | 0.7627 | 0.8701 |
-| ERF-CSRBoost | 0.9185 | 0.9386 | 0.7579 | 0.8166 | 0.8432 |
-| RF-Raw | 0.9259 | 0.9335 | 0.6776 | 0.8170 | 0.7252 |
-| RF-BRF | 0.9009 | 0.9386 | 0.6971 | 0.8113 | 0.8910 |
+| CSRBoost (live) | 0.8955 | 0.9267 | 0.7248 | 0.7618 | 0.8707 |
+| ERF-CSRBoost | 0.9188 | 0.9383 | 0.7558 | 0.8151 | 0.8441 |
+| RF-Raw | 0.9261 | 0.9335 | 0.6749 | 0.8158 | 0.7256 |
+| RF-BRF | 0.9016 | 0.9389 | 0.6952 | 0.8103 | 0.8918 |
 
 What these records show, with the dataset as the unit of analysis (N = 15):
 
 - **Higher AUC than CSRBoost.** ERF-CSRBoost has a higher mean AUC than the re-implemented CSRBoost
   on 12 of 15 datasets and a lower one on the other 3 (BCW, SEED and FLAREF; no ties), with a
-  global mean AUC of 0.9386 against 0.9265. The Wilcoxon signed-rank test across datasets gives
-  p = 0.030, not adjusted for multiple comparisons; the Friedman test over the four methods gives
-  p = 0.005. Read these p-values with four limits. (1) The models have unequal capacity: 1,000
-  trees for ERF-CSRBoost, 50 decision stumps for CSRBoost and 100 trees for the random forest
-  baselines, and no equal-capacity comparison was run. (2) The 15 datasets were also used while the
-  method was developed, so they are not a fresh test set. (3) The test treats the datasets as
-  independent, but CARGOOD and CARVGOOD share features and some datasets contain duplicate rows, so
-  the effective N is below 15. (4) The Holm family of three comparisons (ERF-CSRBoost against each
-  other method) was chosen after seeing the data. It gives 0.060 for the CSRBoost comparison; with
-  all six pairwise comparisons the Holm-adjusted p is about 0.12. The result is borderline: it is
-  p = 0.057 if CB and YEAST5ERL are removed. Clear per-dataset gains over CSRBoost, with agreement
-  across folds, are on PSDAS, ESR, DCCC and CARGOOD (and on ESDRP, which is duplicate-driven).
+  global mean AUC of 0.9383 against 0.9267 (mean difference +0.0116). The Wilcoxon signed-rank test
+  across datasets gives p = 0.030, not adjusted for multiple comparisons; the Friedman test over the
+  four methods gives p = 0.005. Read these p-values with four limits. (1) The models have unequal
+  capacity: 1,000 trees for ERF-CSRBoost, 50 decision stumps for CSRBoost and 100 trees for the
+  random forest baselines, and no equal-capacity comparison was run on these 15 datasets. (2) The 15
+  datasets were also used while the method was developed, so they are not a fresh test set. (3) The
+  test treats the datasets as independent, but CARGOOD and CARVGOOD share features and some datasets
+  contain duplicate rows, so the effective N is below 15. (4) The Holm family of three comparisons
+  (ERF-CSRBoost against each other method) was chosen after seeing the data. It gives 0.060 for the
+  CSRBoost comparison; with all six pairwise comparisons the Holm-adjusted p is 0.121. The result is
+  borderline: it is p = 0.057 if CB and YEAST5ERL are removed. Clear per-dataset gains over CSRBoost,
+  with agreement across folds, are on PSDAS, ESR, DCCC and CARGOOD (and on ESDRP, which is
+  duplicate-driven).
 - **Ties.** ERF-CSRBoost is not distinguishable from the balanced random forest RF-BRF on AUC (mean
-  difference -0.0001, p = 0.15). On datasets where every method scores about 0.97 or higher the
-  methods cannot be separated.
+  difference -0.0006, p = 0.15). On datasets where every method scores about 0.97 or higher
+  ERF-CSRBoost cannot be separated from the random forests, and the 12 of 15 count above includes
+  near-ties there (WINE, YEAST5ERL and CARVGOOD, higher by less than 0.005).
 - **Loses.** On FLAREF, ERF-CSRBoost is below CSRBoost by 0.037 AUC (and below RF-BRF by 0.027). On
   BCW and SEED CSRBoost is slightly higher, by margins that are not meaningful. The mean G-Mean at
-  the 0.5 threshold is lower than for CSRBoost and for RF-BRF, driven by YEAST5ERL and FLAREF.
+  the 0.5 threshold is lower than for CSRBoost and for RF-BRF (not significant across datasets). YEAST5ERL
+  and FLAREF drive the CSRBoost gap (without them ERF-CSRBoost is higher by +0.0117), but the gap to
+  RF-BRF stays at -0.0038 without them.
 - **Not shown.** Why ERF-CSRBoost scores higher where it does is untested: no ablation separates the change
-  of classifier, the bagging and the extra trees.
+  of classifier, the bagging and the larger number of trees.
 
-CB note: in this April run label 1 is the larger Sonar class. A later corrected rerun of CB and two
-other datasets (ESR, DCCC; only CB changed materially) gives CSRBoost 0.9049 and ERF-CSRBoost 0.9319
-for CB, against 0.9028 and 0.9362 in the table above.
+Earlier run and CB note: the April run is the same record except for the ESR, DCCC and CB rows. In
+the April run CB used the larger class as the positive class and gave CSRBoost 0.9028 and
+ERF-CSRBoost 0.9362 for CB, against 0.9049 and 0.9319 in the June record. ESR and DCCC were rerun
+and their mean AUC differs from April by at most 0.0001 for every method; why a rerun of those two
+large datasets does not reproduce the 28 April rows exactly was not established.
 
-The full evidence, protocol, per-dataset tests, the status of each claim and the limits are in
-[`docs/RESULTS_EVIDENCE.md`](docs/RESULTS_EVIDENCE.md).
+### Extended exploratory run (18 datasets)
+
+**Exploratory supplement, not the headline.** A later run covers 18 datasets, 100 folds each: 13 of
+the 15 datasets above (ESR and DCCC were skipped) plus five external datasets (mammography,
+thyroid_sick, coil_2000, satimage and a credit-card fraud subsample), with CSRBoost, ERF-CSRBoost and
+a balanced random forest of 1,000 trees (BRF), whose tree count matches ERF-CSRBoost's. Its protocol
+differs from the headline record: every method is trained on 70 percent of each outer training fold,
+not on the whole fold. The run's script is **not included**, so it cannot be reproduced from this
+repository; the published file is its raw per-fold records, with the rows for further models, which
+are not part of this release, removed (rule, hashes and row counts in
+`docs/RESULTS_EVIDENCE.md`, section 8.1). The five added datasets were chosen by the author and no
+selection rule is recorded. Dataset-level results (N = 18, exact two-sided Wilcoxon, **uncorrected**,
+six tests shown):
+
+| Comparison (unit = dataset, N = 18) | Mean difference | Datasets higher / lower | Bootstrap 95% interval of the mean | Wilcoxon exact, two-sided p |
+|---|---|---|---|---|
+| AUC: ERF-CSRBoost minus CSRBoost | +0.0146 | 15 / 3 | [+0.0062, +0.0230] | 0.0023 |
+| AUC: ERF-CSRBoost minus BRF-1000 | -0.0030 | 10 / 8 | [-0.0084, +0.0010] | 0.9323 |
+| AP: ERF-CSRBoost minus CSRBoost | +0.0694 | 16 / 2 | [+0.0361, +0.1062] | 0.0003 |
+| AP: ERF-CSRBoost minus BRF-1000 | +0.0010 | 12 / 6 | [-0.0171, +0.0180] | 0.3038 |
+| G-Mean at 0.5: ERF-CSRBoost minus CSRBoost | -0.0323 | 8 / 10 | [-0.0777, +0.0048] | 0.6705 |
+| G-Mean at 0.5: ERF-CSRBoost minus BRF-1000 | -0.0645 | 8 / 10 | [-0.1323, -0.0126] | 0.0304 |
+
+- Against CSRBoost, ERF-CSRBoost has a higher mean average precision on 16 of 18 datasets. This
+  comparison has unequal capacity (1,000 trees against 50 stumps), and 13 of the 18 datasets are
+  development datasets, so it does not show that ERF-CSRBoost is a better method.
+- Against the tree-count-matched BRF there is no AUC or AP advantage, and ERF-CSRBoost has a lower
+  G-Mean at the 0.5 threshold. No other equal-capacity result exists.
+- The gains concentrate in a few datasets (CARGOOD, satimage, thyroid_sick; YEAST5ERL, with 5
+  positives, is fourth by AP gain). Without the first three the AP difference over CSRBoost is +0.0421
+  (13 of 15 higher) and over BRF +0.0055 (10 of 15 higher, p 0.25); without all four it is +0.0363
+  over CSRBoost and -0.0011 over BRF.
+- The numbers of this run and of the headline record use different protocols and are never
+  combined here.
+
+Per-dataset table, protocol differences, the filter that produced the published file and every
+caveat are in [`docs/RESULTS_EVIDENCE.md`](docs/RESULTS_EVIDENCE.md), section 8. The full evidence,
+protocol, per-dataset tests, the status of each claim and the limits for the headline record are in
+the same document.
 
 ## 6. What happens to uploaded files and server state
 
@@ -316,7 +367,7 @@ The full evidence, protocol, per-dataset tests, the status of each claim and the
 | `backend/` | Python server, engine, models (plain baseline, CSRBoost port, ERF-CSRBoost), usage log, tests. `gen_samples.py` writes three unbundled synthetic example files; it does not regenerate `samples/` | MIT |
 | `frontend/` | `index.html` (single-page app) and its two Node test files | MIT |
 | `research/scripts/` | The research runner | MIT |
-| `research/results/` | Per-fold and per-dataset scores of the April run, plus the per-fold records of the later June two-method rerun (metrics only) | CC BY 4.0 |
+| `research/results/` | Per-fold records (and, for the June and April records, per-dataset summaries) of the June four-way record, the earlier April run and an exploratory 18-dataset run (metrics only; the exploratory file is a filtered copy and its script is not included, see `research/README.md`) | CC BY 4.0 |
 | `samples/*.csv` | Four modified copies of UCI datasets | Third party: UCI, CC BY 4.0, changes listed |
 | `samples/README.md`, `docs/`, `README.md`, `research/README.md`, `DEPLOY_FLY.md`, `THIRD_PARTY_NOTICES.md` | Documentation | CC BY 4.0 |
 | `Dockerfile`, `fly.toml`, `.dockerignore`, `requirements.txt` | Deployment and dependency files | MIT |
@@ -333,7 +384,8 @@ the changes made to the samples, is listed in `THIRD_PARTY_NOTICES.md`.
 The main ones, with the full list in `docs/LIMITATIONS_AND_VERIFICATION.md`:
 
 - Exploratory results on development datasets, unequal model capacity, fixed threshold, duplicate
-  rows in some datasets, and library versions of the stored run not recorded.
+  rows in some datasets, and library versions of the stored runs not recorded. The 18-dataset run is
+  uncorrected, uses a different protocol and cannot be reproduced from this repository (no script).
 - The app is not numerically equal to the research ERF and uses a single split by default.
 - The tests cover synthetic and bundled data and a set of messy-input cases; browser rendering of
   some screens, the live deployment beyond a health request, and the documented research command
@@ -375,7 +427,8 @@ This repository starts with a single curated commit and no earlier history. The 
 developed in a private repository, and that first commit is a copy of the private repository's
 release state; its earlier commits are not included and their dates are not reproduced here. The
 application and the research it builds on are older than this repository. The `research/` folder is
-copied unchanged from the author's research working folder: see [`research/README.md`](research/README.md)
+copied unchanged from the author's research working folder, except for one file that is derived from
+a larger raw file by a stated filter: see [`research/README.md`](research/README.md)
 for what it contains, how to run the runner, and `research/MANIFEST.sha256` for the SHA-256 of each file.
 
 ## Acknowledgements

@@ -48,12 +48,21 @@ the original provider and place it as described in `README.md`. File hashes are 
 |---|---|---|
 | PSDAS, DCCC, BCW, ESDRP, CB (Sonar), GLASS, ILPD, SEED, WINE | UCI Machine Learning Repository, https://archive.ics.uci.edu/ | CC BY 4.0 on the UCI pages, as read on 4 November 2026 |
 | ESR (Epileptic Seizure Recognition) | UCI, derived from recordings of the University of Bonn | Not established. The UCI page and the Bonn data page could not be read (access refused) when this was checked, and one secondary source says the UCI copy was withdrawn at the curators' request, which was not confirmed. Obtain it from the original source and read its terms. |
-| YEAST5, YEAST5-ERL, CARGOOD, CARVGOOD, FLARE-F | KEEL imbalanced datasets repository, https://sci2s.ugr.es/keel/imbalanced.php | The KEEL page states no licence or reuse terms. The data are processed variants of UCI datasets (Yeast, Car Evaluation, Solar Flare). Do not assume the UCI licence covers the KEEL-processed files. |
+| YEAST5, YEAST5-ERL, CARGOOD, CARVGOOD, FLARE-F | KEEL imbalanced datasets repository, https://sci2s.ugr.es/keel/imbalanced.php | The KEEL page states no licence or reuse terms. The data are processed versions of UCI datasets (Yeast, Car Evaluation, Solar Flare). Do not assume the UCI licence covers the KEEL-processed files. |
 
 KEEL repository reference: J. Alcala-Fdez et al., "KEEL Data-Mining Software Tool: Data Set
 Repository, Integration of Algorithms and Experimental Analysis Framework", Journal of
 Multiple-Valued Logic and Soft Computing 17(2-3), 255-287, 2011. The author order differs between
 catalogues and was not re-checked against the journal; verify it before citing.
+
+### Datasets of the exploratory 18-dataset run (not included)
+
+The exploratory run in `docs/RESULTS_EVIDENCE.md` section 8 used 13 of the datasets above and five
+more: mammography, thyroid_sick, coil_2000 and satimage, which its script loaded through the
+imbalanced-learn dataset fetcher, and a credit-card fraud subsample loaded from OpenML (data id
+1597). None of these data is part of this repository; the published file holds only per-fold metric
+scores. The original providers and the terms of these five datasets were **not checked** for this
+repository. Obtain them from their original sources and read their terms before reuse.
 
 ## 3. The CSRBoost paper
 

@@ -15,17 +15,25 @@ exact check from the repository), **not verified**.
 
 ### Research results
 
-- The result tables are a historical, exploratory comparison on 15 development datasets with a fixed
-  0.5 threshold and untuned baselines. They are not an independent evaluation. See
-  `RESULTS_EVIDENCE.md`, sections 3.4 and 7, for the full list.
+- The result tables (the June four-way record) are a historical, exploratory comparison on 15
+  development datasets with a fixed 0.5 threshold and untuned baselines. They are not an independent
+  evaluation. See `RESULTS_EVIDENCE.md`, sections 3.4 and 7, for the full list.
 - ERF-CSRBoost uses 1,000 trees against 50 stumps (CSRBoost) and 100 trees (random forest
-  baselines). No equal-capacity comparison was run.
+  baselines). No equal-capacity comparison was run on the 15 datasets.
 - On the 15 datasets ERF-CSRBoost is not distinguishable from a balanced random forest on AUC, and
   its mean G-Mean at 0.5 is lower than both CSRBoost and RF-BRF.
-- Several datasets contain duplicate rows, CB uses the larger class as positive in the stored run,
-  and two datasets share features.
-- The Python and library versions of the stored run were not recorded. Bit-for-bit reproduction is
-  not promised.
+- Several datasets contain duplicate rows (ESDRP, FLARE-F), CARGOOD and CARVGOOD share features,
+  and YEAST5ERL has 5 positives. The CB positive class was corrected from the larger to the smaller
+  class in the June record; the April run, kept as the earlier run, used the larger class.
+- The Python and library versions of the stored runs were not recorded. The June ESR and DCCC rows
+  agree with the 25 April runs and not with the 28 April run, for a reason that was not established.
+  Bit-for-bit reproduction is not promised.
+- The extended exploratory run on 18 datasets (`RESULTS_EVIDENCE.md`, section 8) is uncorrected for
+  multiple comparisons, uses a different protocol (models trained on 70 percent of each training
+  fold), includes five external datasets chosen by the author without a recorded rule, has gains that
+  concentrate in a few datasets, and cannot be reproduced from this repository because its script is
+  not included. Beyond its comparison with a 1,000-tree balanced random forest, which shows no AUC or
+  AP advantage for ERF-CSRBoost, no equal-capacity result exists.
 - The CSRBoost used for comparison is a local re-implementation, not the authors' code, and ERF's
   clustering step (MiniBatchKMeans, no class-redefinition guard) is "CSRBoost-style", not identical
   to the published step.
@@ -98,9 +106,9 @@ Checked on Windows 11. Linux and macOS were not tested.
 | Receipt and notes text | `node frontend/test_receipt.js` | 13 checks pass: single-split and fold-run receipt wording, the capacity note, no long dashes, the slider label. There is no DOM test for the subsample note or the fold-downgrade sentence | Newly executed |
 | Sample card text | `python backend/test_sample_cards.py` | 3 tests, OK. For each bundled sample the class the app picks as positive is target 1 with the expected size (167, 1,327, 794, 69 rows), the row count and ratio in the card text match the file, and the liver and student cards name the right class. The test fails on the earlier card text and page noun | Newly executed |
 | Landing-page preview numbers | See "Landing-page preview numbers" below | Reproduced | Newly executed |
-| Local server | `PORT=8631 python backend/server.py`, then `GET /healthz`, `GET /`, `HEAD /`, `GET /api/samples` | 200, 200 (66,195 bytes), 200, sample list returned | Newly executed with the environment's interpreter. The literal `py -3.11 backend/server.py` (Windows launcher) was not run against a global interpreter |
+| Local server | `PORT=8631 python backend/server.py`, then `GET /healthz`, `GET /`, `HEAD /`, `GET /api/samples` | 200, 200 (the page body of the committed `frontend/index.html`, 66,506 bytes), 200, sample list returned | Newly executed with the environment's interpreter. The literal `py -3.11 backend/server.py` (Windows launcher) was not run against a global interpreter |
 | Live app | `GET https://fixyourdataset.fly.dev/healthz` | 200 | Newly executed (one read-only request) |
-| Datasets and CSV | recomputation of the result tables, sample label counts, sample row matching | See `RESULTS_EVIDENCE.md` and `../samples/README.md` | Newly executed |
+| Datasets and CSV | recomputation of the result tables from the June four-way record and of the exploratory run's tables, sample label counts, sample row matching | See `RESULTS_EVIDENCE.md` and `../samples/README.md` | Newly executed |
 
 ### Landing-page preview numbers
 
@@ -168,8 +176,13 @@ branch. The fixes on this branch touch only the items marked "fixed" below.
 - The documented research command (`research/scripts/comparison_rf_csrboost_erf.py`) was read from
   code but was not executed during release preparation, and no training was run. The 10-hour full run
   and the smaller invocations in `../README.md` are untested here.
+- Reproduction of the exploratory 18-dataset run: not possible from this repository (script, data
+  and library versions are not included), and the stored script is not shown to be the exact text that
+  produced every dataset.
+- The statement that the June ESR and DCCC reruns reproduce the 25 April runs. It comes from the
+  author's own records, which are not part of this repository.
 - That the application reproduces any research number. It does not (`IMPLEMENTATION_MAP.md`).
-- Python and library versions of the stored April run; other seeds, platforms and library versions.
+- Python and library versions of the stored runs; other seeds, platforms and library versions.
 - The CSRBoost paper's own tables were not re-checked against the 15 datasets used here.
 - The origin of the two inline SVG icons in `frontend/index.html`.
 - Every dataset's redistribution terms beyond what the provider pages stated on 4 November 2026

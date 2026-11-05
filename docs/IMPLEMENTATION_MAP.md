@@ -2,8 +2,11 @@
 
 ERF-CSRBoost exists here in two implementations.
 
-- The **research runner**, `research/scripts/comparison_rf_csrboost_erf.py`. It produced the stored
-  result tables (see `RESULTS_EVIDENCE.md`).
+- The **research runner**, `research/scripts/comparison_rf_csrboost_erf.py`. It produced the rows
+  of the stored June four-way record for ESR, DCCC and CB, and an earlier version of it produced the
+  other rows (see `RESULTS_EVIDENCE.md`, sections 2 and 3). The exploratory 18-dataset run in
+  `RESULTS_EVIDENCE.md` section 8 imports this runner's ERF-CSRBoost and CSRBoost functions, but its
+  own script is not included.
 - The **application**, `backend/models/erf_csrboost.py` together with `backend/engine.py`. It
   serves the live app at https://fixyourdataset.fly.dev.
 
@@ -57,7 +60,7 @@ numbers because line numbers move when files are edited.
 | Input to the forest | Standardised matrix straight from SMOTE | Pipeline preprocessor re-fitted on the resampled data (median imputer and StandardScaler for numeric, most-frequent imputer and one-hot for categorical) | Different mechanics. Forests are invariant to per-column scaling, so for numeric data only the SMOTE-space difference above matters | `run_erf_csrboost`; `_preprocessor` in the engine |
 | Missing values | Loader coerces to numeric and fills with 0 before any split (label free) | Median or mode fill fitted on training rows, plus pipeline imputers | Different (app extension) | `_to_float`; `resample_train` |
 | Categorical features | Dataset-specific ordinal maps or dummy coding applied by the loaders to the whole dataset; no SMOTE-NC | One-hot in the pipeline, ordinal for clustering, SMOTE-NC | Different (app extension) | loaders; `_make_sampler_original` |
-| Positive class | The loader makes the minority class label 1. The corrected runner flips the Sonar (CB) polarity; the run behind the stored table did not (see `RESULTS_EVIDENCE.md`) | `prepare` orders classes majority first so label 1 is the rarest class | Same intent | loaders; `prepare` |
+| Positive class | The loader makes the minority class label 1. The corrected runner flips the Sonar (CB) polarity: the CB rows of the June four-way record use R (97 rows) as label 1, while the April run used M (111 rows) (see `RESULTS_EVIDENCE.md`, sections 2.1 and 3.1) | `prepare` orders classes majority first so label 1 is the rarest class | Same intent | loaders; `prepare` |
 | Multiclass targets | Not applicable: every loader binarises | Rarest class against all others, with a warning | Different (app extension) | `prepare` |
 | Probability alignment | `predict_proba(...)[:, 1]` per bag, mean over bags, assumes classes_ = [0, 1] | `predict_proba(X)[:, 1]` per bag, mean; returns [1 minus p, p]; all 20 bags had classes_ = [0, 1] in the check | Same | `run_erf_csrboost`; `ERFModel.predict_proba`; newly executed |
 | Threshold | 0.5 with `>=` for ACC, F1, G-Mean; AUC and AP from probabilities | `predict` uses `>= 0.5`; the UI also has a threshold slider that moves the cut on the held-out probabilities | Same default; the slider is an app addition and is exploratory | `_metrics`; `ERFModel.predict` |
@@ -98,22 +101,29 @@ changed, and the hash here no longer applies.
 
 ### Which script produced the stored results
 
-The stored April 2026 results (`RESULTS_EVIDENCE.md`) were produced by an earlier version of the
-runner. That earlier script text was not archived. A later snapshot of the script (SHA-256
-`87445debd3514c96b1c43aa1693d0cf44472721f4f70507a8a3b6a782bde5dd9`, dated 4 May 2026) is
-consistent with it. It differs from the selected runner above in three places, none in the ERF
-algorithm:
+The stored June four-way record (`RESULTS_EVIDENCE.md`, section 2.1) is the April 2026 run with the
+rows of ESR, DCCC and CB replaced by June 2026 reruns. The ESR, DCCC and CB rows come from the
+selected runner above (the corrected loaders; this is a historical artifact read from the author's
+records and the file dates, not repeated here). The other twelve datasets come from the April run,
+which was produced by an earlier version of the runner. That earlier script text was not archived.
+A later snapshot of the script (SHA-256
+`87445debd3514c96b1c43aa1693d0cf44472721f4f70507a8a3b6a782bde5dd9`; the only date evidence is a
+comment in it that refers to a reorganisation after 4 May 2026) is consistent with it. It differs
+from the selected runner above in three places, none in the ERF algorithm:
 
 - the ESR and DCCC loaders pointed at folder names that do not exist in the final layout, so those
   two datasets would be skipped with a printed message;
-- the Sonar (CB) loader made the larger class (M, 111 rows) the positive class;
+- the Sonar (CB) loader made the larger class (M, 111 rows) the positive class, and had no guard
+  that flips the class if the positive class would be the majority;
 - a docstring on `_cluster_retain` still said KMeans.
 
 The ERF functions (`_cluster_k`, `_apply_smote`, `_cluster_retain`, `_build_rf_erf`,
 `run_erf_csrboost`) are syntactically identical (same AST, ignoring docstrings) between the
 snapshot and the selected runner. That is circumstantial support that the April run used the same
 algorithm. It is not proof, because the April script itself is not preserved. The package versions
-(Python, scikit-learn, imbalanced-learn, NumPy) used for the April run were not recorded.
+(Python, scikit-learn, imbalanced-learn, NumPy) used for the April run and the June reruns were not
+recorded. The June reruns of ESR and DCCC reproduce the 25 April runs, not the 28 April run, for a
+reason that was not established (`RESULTS_EVIDENCE.md`, section 2.1).
 
 ## 4. A small equivalence check (newly executed, synthetic data)
 
@@ -142,8 +152,11 @@ performance claim.
 
 - It does not show that the application reproduces any number in `RESULTS_EVIDENCE.md`. It does
   not, and it is not meant to.
-- It compares one version of the research runner, not every historical copy. Earlier exploratory
-  scripts (for example a variant that fits a balanced random forest inside each bag) are not
-  ERF-CSRBoost and are not part of this release.
+- It does not describe the script of the exploratory 18-dataset run (`RESULTS_EVIDENCE.md`, section
+  8), which is not included. That run's protocol (an inner 70 / 30 split of each training fold, models
+  trained on the 70 percent part, a 1,000-tree balanced random forest as comparison) was read from
+  its script and is stated in section 8.2 of that document; the ERF-CSRBoost and CSRBoost it ran are
+  the functions of the selected runner above.
+- It compares one version of the research runner, not every historical copy.
 - It compares the front end with the audit repository's implementation of the published method,
   not with the paper text.
