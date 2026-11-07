@@ -1,5 +1,9 @@
 # ERF-CSRBoost and FixYourDataset
 
+<!-- november-2026-results -->
+**Latest evaluation, 7 November 2026:** 2,000 new fits on five added tasks all succeeded. Combined with the original 15-task June record, ERF has higher mean AP than reimplemented CSRBoost on **16/20 tasks** (not the retired 17/20), and higher AP than raw RF on 12 tasks, tied on two, lower on six. Its mean task AP is slightly below raw RF, with substantially higher observed cost. This is a protocol-aligned historical extension, not an independent same-environment rerun of all 20. [Full tables, provenance and limitations](research/results/november2026_aligned_extension/README.md). The historical sections below retain their original scope; the app was not changed or redeployed.
+<!-- /november-2026-results -->
+
 An experimental ensemble extension of CSRBoost, with a web application for exploring class imbalance and comparing model behavior. Developed alongside a separate reproducibility audit of the published CSRBoost method.
 
 **Status.** ERF-CSRBoost is an unpublished research prototype. It has not been peer reviewed, and
@@ -225,7 +229,7 @@ preparation, and no training was run):
 was **recomputed** here from its saved per-fold records. It is the 28 April 2026 run
 (`comparison_20260428_141315`, kept in `research/results/` as the earlier run) with the rows of three
 datasets, ESR, DCCC and CB, replaced by June 2026 reruns; for CB the positive class was corrected from
-the larger class (M) to the smaller class (R). Nothing was retrained for this repository. The records
+the larger class (M) to the smaller class (R). Those historical records were not retrained for the original release; the November extension above contains 2,000 newly fitted records. The records
 are in `research/results/comparison_june2026_four_way/`. A separate exploratory run on 18 datasets is
 described at the end of this section; it is a supplement, not the headline.
 

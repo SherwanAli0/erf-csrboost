@@ -1,5 +1,9 @@
 # Results evidence
 
+<!-- november-2026-results -->
+The latest result record is the [November 2026 aligned extension](https://github.com/SherwanAli0/erf-csrboost/tree/main/research/results/november2026_aligned_extension): 2,000 new successful fits, a qualified 16/20 mean-AP comparison against CSRBoost, mixed raw-RF performance and higher compute cost. Earlier sections below describe historical checks at their recorded dates and do not include the new experiment.
+<!-- /november-2026-results -->
+
 What the stored ERF-CSRBoost results are, how they were produced, what was recomputed from the
 saved records, and what cannot be concluded from them.
 

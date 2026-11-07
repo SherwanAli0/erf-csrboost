@@ -1,0 +1,48 @@
+{
+  "all_required_results_saved_locally": true,
+  "archives": [
+    {
+      "dataset": "coil_2000",
+      "sha256": "b67c42dcb00b7836d93bf3b60e135d537f60d773674b5b8f1bc20e48e01ac2b0",
+      "verified_successes": 400,
+      "filename": "colab-coil-results-20261107-155412.zip"
+    },
+    {
+      "dataset": "satimage",
+      "sha256": "4628fa08680c9a5ea8b53a4d1f4cab29178871a25125b6546a4070b7e9498d4f",
+      "verified_successes": 400,
+      "filename": "colab-satimage-results-20261107-155405.zip"
+    },
+    {
+      "dataset": "creditcard",
+      "sha256": "549265e86e0cc032d75fa42c912f8184b91872cc758158cd17de699a264125e4",
+      "verified_successes": 400,
+      "filename": "colab-creditcard-results-20261107-170725.zip"
+    }
+  ],
+  "checks": [
+    "ZIP CRC",
+    "complete unique job coverage",
+    "frozen protocol and source identity",
+    "dataset and split artifact hashes",
+    "prediction hashes",
+    "exact test indices and labels",
+    "five metrics recomputed for every result"
+  ],
+  "counts": {
+    "coil_2000": 400,
+    "creditcard": 400,
+    "mammography": 400,
+    "satimage": 400,
+    "thyroid_sick": 400
+  },
+  "identity_sha256": "fb59d7c6feab0a816833191c70d6a9c5884fa3233e25a3e94b3d781fff289aa9",
+  "status": {
+    "error": 0,
+    "pending": 0,
+    "recorded": 2000,
+    "success": 2000,
+    "timeout": 0
+  },
+  "verified_successes": 2000
+}

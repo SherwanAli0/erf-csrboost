@@ -1,12 +1,16 @@
 # research/: runner script and stored results
 
+<!-- november-2026-results -->
+The latest result record is the [November 2026 aligned extension](https://github.com/SherwanAli0/erf-csrboost/tree/main/research/results/november2026_aligned_extension): 2,000 new successful fits, a qualified 16/20 mean-AP comparison against CSRBoost, mixed raw-RF performance and higher compute cost. Earlier sections below describe historical checks at their recorded dates and do not include the new experiment.
+<!-- /november-2026-results -->
+
 ERF-CSRBoost is an experimental extension of CSRBoost and an unpublished research prototype. This
 folder holds the script that produced the stored comparison and the saved per-fold records of three
 result sets: the June four-way record (the headline record), the earlier April run, and an
 exploratory 18-dataset run (raw fold records only, without its script). It holds no datasets, no
 thesis or report documents, and no other research material.
 
-**Nothing here was re-run for this repository.** No model was trained while preparing it. What was
+**The original release did not retrain its historical April, June or July records.** The November extension now adds 2,000 newly executed fits on five tasks, linked above. The historical material below describes the original release checks. What was
 checked is listed in section 2. The numbers are a historical artifact of an exploratory comparison
 on 15 datasets that were also used while the method was developed, with a fixed 0.5 threshold,
 untuned baselines and unequal model capacity (ERF-CSRBoost 1,000 trees, CSRBoost 50 stumps, the
