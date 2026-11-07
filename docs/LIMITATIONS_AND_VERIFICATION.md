@@ -72,10 +72,10 @@ limit what the numbers can be taken to show. Full tables and the status of each 
   row. That is a separate matter from the original data containing train/test feature twins, which
   remain whatever the pipeline does. The twins can inflate test scores, and the share of affected test
   rows is largest on ESDRP and FLARE-F. The saved results were not deduplicated, and no deduplicated or group-aware rerun exists.
-- **Tasks that share a feature collection.** CARGOOD and CARVGOOD hold the same 1,728 feature rows
+- **Datasets that share a feature collection.** CARGOOD and CARVGOOD hold the same 1,728 feature rows
   (six features), and YEAST5 and YEAST5ERL hold the same 1,484 feature rows (eight features); in each
-  pair only the target label differs. The 15 task labels are therefore not 15 separate feature
-  collections, while the dataset-level tests (Wilcoxon, Friedman) still treat the tasks as
+  pair only the target label differs. The 15 dataset labels are therefore not 15 separate feature
+  collections, while the dataset-level tests (Wilcoxon, Friedman) still treat the datasets as
   independent.
 - **SMOTE failure is silent.** The runner's `_apply_smote` (lines 448 to 455 of
   `research/scripts/comparison_rf_csrboost_erf.py`) catches any exception and returns its input, so a

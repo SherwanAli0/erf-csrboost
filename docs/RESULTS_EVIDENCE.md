@@ -155,9 +155,9 @@ Notes that matter when reading the results:
 - **CARGOOD and CARVGOOD** share identical feature rows and differ only in which class is positive,
   so they are not independent datasets. The effective number of independent datasets is below 15.
 - **Exact feature twins and shared feature collections.** Section 3.5 gives, for six datasets, how many
-  test rows of the first fold have a feature twin in training, and lists the task pairs that share
+  test rows of the first fold have a feature twin in training, and lists the dataset pairs that share
   their whole feature set (CARGOOD with CARVGOOD, and YEAST5 with YEAST5ERL).
-- Several datasets are multi-class files collapsed to a binary task: PSDAS, ESR, SEED, WINE, GLASS.
+- Several datasets are multi-class files collapsed to a binary dataset: PSDAS, ESR, SEED, WINE, GLASS.
 - The statement "all 15 datasets are the ones listed in the CSRBoost paper" comes from the research
   files. It was not checked against the paper's table.
 - Loader steps applied to the whole data before cross-validation use no label-dependent statistic:
@@ -247,17 +247,17 @@ diagnostic for one split, not an average over the 100 evaluations.
   run (section 8) uses the same loaders for 13 datasets, so the same twins are present; the five added
   datasets were not checked.
 
-**Tasks that share a whole feature collection.** Compared as sorted feature rows after loading with
+**Datasets that share a whole feature collection.** Compared as sorted feature rows after loading with
 the runner's loader logic:
 
-| Task pair | Rows | Features | Same rows? | Positives |
+| Dataset pair | Rows | Features | Same rows? | Positives |
 |---|---|---|---|---|
 | CARGOOD and CARVGOOD | 1,728 | 6 | Yes, same order | 69 and 65 |
 | YEAST5 and YEAST5ERL | 1,484 | 8 | Yes, file order differs | 44 and 5 |
 
-The 15 task labels are therefore not 15 separate feature collections: two pairs differ only in the
-target label. No other two tasks have the same number of rows (section 3.1), so these are the only
-candidate pairs. The dataset-level tests of sections 4.3 and 8.3 still treat the tasks as
+The 15 dataset labels are therefore not 15 separate feature collections: two pairs differ only in the
+target label. No other two datasets have the same number of rows (section 3.1), so these are the only
+candidate pairs. The dataset-level tests of sections 4.3 and 8.3 still treat the datasets as
 independent, so the effective number of independent datasets is below 15 (and below 18 in section 8).
 Section 4.3 shows a sensitivity check without CARVGOOD; the equivalent check without one member of
 the YEAST5 pair was not computed.
@@ -472,7 +472,7 @@ dataset-level tests are not significant (p 0.7615 and 0.4543, section 4.5).
 | ESDRP and FLARE-F contain 269 and 760 duplicate rows | Newly executed check (counted from the files) | section 3.1 |
 | 68.7 percent (ESDRP) and 80.6 percent (FLARE-F) of test rows have a training twin | Newly executed check by a review pass; recomputed in section 3.5 (68.65 and 80.64 percent for twins of the same class) | sections 3.1 and 3.5 |
 | First fold: 79 of 104 ESDRP, 177 of 214 FLARE-F, 20 of 6,000 DCCC, 4 of 117 ILPD, 7 of 297 YEAST5 and 7 of 297 YEAST5ERL test rows have a feature twin in training; FLARE-F has 19 and DCCC 21 feature patterns with conflicting labels | Newly executed check (loaders only, no model fitted); a one-split diagnostic, not an average. The saved results were not deduplicated | section 3.5 |
-| CARGOOD and CARVGOOD, and YEAST5 and YEAST5ERL, each share an identical set of feature rows | Newly executed check (sorted feature rows compared). Dataset-level tests still treat the tasks as independent | section 3.5 |
+| CARGOOD and CARVGOOD, and YEAST5 and YEAST5ERL, each share an identical set of feature rows | Newly executed check (sorted feature rows compared). Dataset-level tests still treat the datasets as independent | section 3.5 |
 | The selected GLASS file has 196 rows (type 3 absent, type 1 has 69); the original UCI file has 214 | Newly executed check on the selected file; the 214-row counts were read from the canonical file in the author's research folder, which is not part of this repository. A rerun on 214 rows would not be the same experiment | section 3.5 |
 | A SMOTE exception makes the runner fall back silently; load errors are skipped and metric errors become NaN | Read from code (lines 448 to 455, 716 to 718, 740 to 742). Whether a fallback occurred in the stored June record is not established; the record has all 6,000 expected rows and no NaN (recomputed) | section 3.3 |
 | The June ESR and DCCC reruns reproduce the 25 April runs, not the 28 April run | Historical artifact, unverified here; cause unresolved | section 2.1 |

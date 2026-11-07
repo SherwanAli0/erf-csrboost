@@ -10,7 +10,7 @@ result sets: the June four-way record (the headline record), the earlier April r
 exploratory 18-dataset run (raw fold records only, without its script). It holds no datasets, no
 thesis or report documents, and no other research material.
 
-**The original release did not retrain its historical April, June or July records.** The November extension now adds 2,000 newly executed fits on five tasks, linked above. The historical material below describes the original release checks. What was
+**The original release did not retrain its historical April, June or July records.** The November extension now adds 2,000 newly executed fits on five datasets, linked above. The historical material below describes the original release checks. What was
 checked is listed in section 2. The numbers are a historical artifact of an exploratory comparison
 on 15 datasets that were also used while the method was developed, with a fixed 0.5 threshold,
 untuned baselines and unequal model capacity (ERF-CSRBoost 1,000 trees, CSRBoost 50 stumps, the
@@ -155,11 +155,11 @@ Important caveats about the data:
   per dataset and method and no NaN values (section 6).
 - CB, ESDRP, FLAREF and others have properties (class polarity, duplicate rows) that matter for the
   results; see `../docs/RESULTS_EVIDENCE.md` section 3.
-- Some tasks share a whole feature collection. CARGOOD and CARVGOOD hold the same 1,728 feature rows
+- Some datasets share a whole feature collection. CARGOOD and CARVGOOD hold the same 1,728 feature rows
   (six features) and YEAST5 and YEAST5ERL hold the same 1,484 feature rows (eight features, in a
   different file order); in each pair only the target label differs (compared as sorted feature rows,
-  recomputed). The 15 task labels are therefore not 15 separate feature collections, and the
-  dataset-level tests still treat the tasks as independent.
+  recomputed). The 15 dataset labels are therefore not 15 separate feature collections, and the
+  dataset-level tests still treat the datasets as independent.
 - Exact feature twins across train and test. In the first fold of the runner's splitter
   (`RepeatedStratifiedKFold`, 5 splits, 20 repeats, `random_state` 42; lines 726 to 727 of the runner),
   the number of test rows whose full feature vector, whatever its class, also occurs in the training

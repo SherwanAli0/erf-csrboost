@@ -1,19 +1,16 @@
-# ERF-CSRBoost and FixYourDataset
+# ERF-CSRBoost: Resampled Forest Ensembles for Imbalanced Classification
 
-<!-- november-2026-results -->
-**Latest evaluation, 7 November 2026:** 2,000 new fits on five added tasks all succeeded. Combined with the original 15-task June record, ERF has higher mean AP than reimplemented CSRBoost on **16/20 tasks** (not the retired 17/20), and higher AP than raw RF on 12 tasks, tied on two, lower on six. Its mean task AP is slightly below raw RF, with substantially higher observed cost. This is a protocol-aligned historical extension, not an independent same-environment rerun of all 20. [Full tables, provenance and limitations](research/results/november2026_aligned_extension/README.md). The historical sections below retain their original scope; the app was not changed or redeployed.
-<!-- /november-2026-results -->
+ERF-CSRBoost combines clustered undersampling, SMOTE and bagged random forests to study classification with imbalanced labels. Its implementation averages the predictions of 20 resampled forests, each containing 50 trees.
 
-An experimental ensemble extension of CSRBoost, with a web application for exploring class imbalance and comparing model behavior. Developed alongside a separate reproducibility audit of the published CSRBoost method.
+This repository contains the research implementation, recorded evaluations and **FixYourDataset**, a web application for comparing models and examining the effects of resampling and data leakage.
 
-**Status.** ERF-CSRBoost is an unpublished research prototype. It has not been peer reviewed, and
-nothing in this repository claims that it is a proven or general improvement over any other method.
-The numbers below are an exploratory comparison with stated limits.
+**Latest evaluation.** The November extension adds 2,000 model fits across five datasets to the 15-dataset historical record. ERF achieves higher mean average precision than reimplemented CSRBoost on **16 of 20 datasets**. Comparisons with ordinary Random Forest show a performance-cost trade-off: 12 higher, two tied and six lower dataset scores, with a slightly lower overall mean AP and greater training cost. [Evaluation protocol, complete results and limitations](research/results/november2026_aligned_extension/README.md).
 
-- Live application: https://fixyourdataset.fly.dev
-- Separate audit of the published CSRBoost method: https://github.com/SherwanAli0/csrboost-audit
-- Licences: MIT for code, CC BY 4.0 for original documentation and result files, with third-party
-  exceptions (section 7).
+**Research status.** This is an unpublished exploratory study. The combined evaluation uses historical and newly generated results; some datasets share their feature sets. Model capacity, dataset reuse and software-version differences limit the conclusions. The application uses its own evaluation procedure and does not reproduce the research tables.
+
+- [FixYourDataset application](https://fixyourdataset.fly.dev)
+- [Separate CSRBoost reproducibility audit](https://github.com/SherwanAli0/csrboost-audit)
+- MIT for code and CC BY 4.0 for original documentation/results, with third-party exceptions described below.
 
 Contents: [1 ERF-CSRBoost](#1-what-erf-csrboost-is) | [2 App and runner](#2-what-the-app-implements-and-how-it-differs-from-the-research-runner) | [3 Run the app](#3-run-the-app-locally) | [4 Run the research runner](#4-run-the-research-runner-and-obtain-the-data) | [5 Results](#5-results) | [6 Uploads and server state](#6-what-happens-to-uploaded-files-and-server-state) | [7 Files and licences](#7-files-and-licences) | [8 Limitations](#8-limitations) | [9 Audit](#9-relationship-to-the-audit) | [10 Citation](#10-citation) | [11 Provenance](#11-provenance-of-this-repository) | [Acknowledgements](#acknowledgements)
 
@@ -240,7 +237,7 @@ the random forest baselines; no equal-capacity comparison was run on these 15 da
 "CSRBoost" here is a local re-implementation, not the authors' code. Several datasets contain
 duplicate rows (notably ESDRP and FLARE-F), CARGOOD and CARVGOOD share features, YEAST5 and YEAST5ERL
 share their whole feature set (different target labels), and YEAST5ERL has only 5 positives, so the 15
-task labels are not 15 separate feature collections and the effective number of independent datasets
+dataset labels are not 15 separate feature collections and the effective number of independent datasets
 is below 15. Many test rows also have an exact feature twin in the training rows: in the first fold of
 the runner's splitter, 79 of 104 ESDRP test rows and 177 of 214 FLARE-F test rows (a one-split
 diagnostic, `docs/RESULTS_EVIDENCE.md`, section 3.5). This is not an independent evaluation and does
@@ -402,8 +399,8 @@ The main ones, with the full list in `docs/LIMITATIONS_AND_VERIFICATION.md`:
   rows in some datasets, and library versions of the stored runs not recorded. The 18-dataset run is
   uncorrected, uses a different protocol and cannot be reproduced from this repository (no script).
 - Data quality of the research datasets: test rows with an exact feature twin in the training rows
-  (first fold: 79 of 104 for ESDRP, 177 of 214 for FLARE-F), tasks that share a whole feature set
-  (CARGOOD with CARVGOOD, YEAST5 with YEAST5ERL), so the 15 task labels are not 15 separate feature
+  (first fold: 79 of 104 for ESDRP, 177 of 214 for FLARE-F), datasets that share a whole feature set
+  (CARGOOD with CARVGOOD, YEAST5 with YEAST5ERL), so the 15 dataset labels are not 15 separate feature
   collections while the dataset-level tests treat them as independent. The saved results were not
   deduplicated. The GLASS file has 196 rows, not the 214 of the original UCI data, so a rerun on the
   214-row file would not be the same experiment (`docs/LIMITATIONS_AND_VERIFICATION.md`).

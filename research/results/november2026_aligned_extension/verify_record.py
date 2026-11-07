@@ -32,4 +32,4 @@ for m in ['CSRBOOST','RF_RAW','RF_BRF']:
     delta=[float(r['ERF_CSRBOOST'])-float(r[m]) for r in combined]
     counts[m]={'higher':sum(d>1e-12 for d in delta),'ties':sum(abs(d)<=1e-12 for d in delta),'lower':sum(d< -1e-12 for d in delta)}
 assert counts['CSRBOOST']=={'higher':16,'ties':0,'lower':4}
-print(json.dumps({'verified_new_rows':len(rows),'tasks':len(combined),'AP_comparisons':counts},indent=2))
+print(json.dumps({'verified_new_rows':len(rows),'datasets':len(combined),'AP_comparisons':counts},indent=2))
