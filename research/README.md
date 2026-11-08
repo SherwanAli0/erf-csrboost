@@ -1,12 +1,12 @@
 # research/: runner script and stored results
 
 <!-- november-2026-results -->
-The latest result record is the [November 2026 aligned extension](https://github.com/SherwanAli0/erf-csrboost/tree/main/research/results/november2026_aligned_extension): 2,000 new successful fits, a qualified 16/20 mean-AP comparison against CSRBoost, mixed raw-RF performance and higher compute cost. Earlier sections below describe historical checks at their recorded dates and do not include the new experiment.
+The latest result record is the [November 2026 aligned extension](https://github.com/SherwanAli0/erf-csrboost/tree/main/research/results/november2026_aligned_extension): 2,000 new completed fits over five added datasets. Over 20 datasets ERF has higher mean AP than reimplemented CSRBoost on 16 (lower on 4) and than a 100-tree plain random forest on 12 (tied on 2, lower on 6; mean AP difference -0.0008, neither an advantage nor equivalence). Claims, limitations and related work: [RESEARCH-EVIDENCE.md](RESEARCH-EVIDENCE.md). Earlier sections below describe historical checks at their recorded dates and do not include the new experiment.
 <!-- /november-2026-results -->
 
-ERF-CSRBoost is an experimental extension of CSRBoost and an unpublished research prototype. This
+ERF-CSRBoost is an experimental extension of CSRBoost and a research prototype that is not peer reviewed. This
 folder holds the script that produced the stored comparison and the saved per-fold records of three
-result sets: the June four-way record (the headline record), the earlier April run, and an
+result sets: the June four-way record (historical, AUC-based), the earlier April run, and an
 exploratory 18-dataset run (raw fold records only, without its script). It holds no datasets, no
 thesis or report documents, and no other research material.
 
@@ -22,13 +22,15 @@ before quoting any of them; it also contains the recomputed tables and the limit
 | Path | What it is | Licence |
 |---|---|---|
 | `scripts/comparison_rf_csrboost_erf.py` | The runner: CSRBoost (re-implemented), ERF-CSRBoost (plain version: 20 bags of 50-tree random forests), RF-Raw and RF-BRF, evaluated with 5-fold stratified cross-validation repeated 20 times (100 folds per dataset) | MIT |
-| `results/comparison_june2026_four_way/fold_results.csv` | **The headline record (June four-way record):** 6,000 rows = 15 datasets x 4 methods x 100 folds, columns `dataset, method, fold, acc, auc, f1, ap, gmean`. It is the April run with the ESR, DCCC and CB rows replaced by June 2026 reruns | CC BY 4.0 |
+| `results/comparison_june2026_four_way/fold_results.csv` | **The June four-way record (historical, AUC-based):** 6,000 rows = 15 datasets x 4 methods x 100 folds, columns `dataset, method, fold, acc, auc, f1, ap, gmean`. It is the April run with the ESR, DCCC and CB rows replaced by June 2026 reruns | CC BY 4.0 |
 | `results/comparison_june2026_four_way/dataset_summary.csv` | Per-dataset size, imbalance, and mean and standard deviation (population formula) of each metric for each method. Recomputed from the fold records and found equal | CC BY 4.0 |
 | `results/comparison_june2026_four_way/global_means.csv` | Mean of the 15 dataset means per method and metric. Recomputed from the fold records and found equal | CC BY 4.0 |
 | `results/comparison_20260428_141315/fold_results.csv` | **The earlier run (28 to 29 April 2026):** same layout, 6,000 rows. Its ESR, DCCC and CB rows were superseded by the June reruns (section 8). Kept for provenance | CC BY 4.0 |
 | `results/comparison_20260428_141315/dataset_summary.csv` | Per-dataset summary of the April run | CC BY 4.0 |
-| `results/exploratory_18_dataset_run/fold_results.csv` | **Exploratory supplement, not the headline:** 5,400 rows = 18 datasets x 3 methods (CSRBoost, ERF, BRF) x 100 folds, columns `dataset, src, fold, model, auc, ap, gmean_default, gmean_moved, pick`. A filtered copy of a 9,000-row file (section 8). Its script is not included | CC BY 4.0 |
-| `MANIFEST.sha256` | SHA-256 of the seven files above. Check with `cd research` then `sha256sum -c MANIFEST.sha256` (or `Get-FileHash` in PowerShell). `.gitattributes` forces LF line endings on this list so the check also works after a Windows checkout with `core.autocrlf=true` | MIT (configuration file) |
+| `results/exploratory_18_dataset_run/fold_results.csv` | **Exploratory supplement:** 5,400 rows = 18 datasets x 3 methods (CSRBoost, ERF, BRF) x 100 folds, columns `dataset, src, fold, model, auc, ap, gmean_default, gmean_moved, pick`. A filtered copy of a 9,000-row file (section 8). Its script is not included | CC BY 4.0 |
+| `results/november2026_aligned_extension/` | **Latest record (November 2026):** `fold_results.csv` (2,000 rows = 5 datasets x 4 methods x 100 folds, with status, fallback count and timing columns), `aligned_20_task_ap.csv`, `protocol.json`, `completion.json`, `verify_record.py` (checks the saved tables and checksums only, runs no model), its own `MANIFEST.sha256` and README. The code that produced it (`run.py`, `worker.py`, `legacy_adapter.py`) is not included | CC BY 4.0 (results folder; the licence of `verify_record.py` is not stated separately) |
+| `RESEARCH-EVIDENCE.md` | Claims and evidence for the November comparison, three further experiments, related work and corrections | CC BY 4.0 |
+| `MANIFEST.sha256` | SHA-256 of the seven files above, not including the November folder (which has its own `MANIFEST.sha256`). Check with `cd research` then `sha256sum -c MANIFEST.sha256` (or `Get-FileHash` in PowerShell). `.gitattributes` forces LF line endings on this list so the check also works after a Windows checkout with `core.autocrlf=true` | MIT (configuration file) |
 | `.gitignore` | Keeps downloaded datasets and the runner's own outputs out of Git | MIT (configuration file) |
 
 Six of the seven files were copied byte for byte from the author's research working folder (a
@@ -57,7 +59,7 @@ The April run (28 to 29 April 2026) was produced by an earlier version of this s
 April text was not preserved, so its identity with this file is inferred, not proven. This file is the
 later, corrected version: on 20 June 2026 the author fixed three loader problems (the ESR path, the
 DCCC path, and the class polarity of the Sonar dataset, CB), and the ESR, DCCC and CB rows of the
-headline record come from June reruns with the corrected loaders (historical artifact, from the
+June four-way record come from June reruns with the corrected loaders (historical artifact, from the
 author's records). The functions that implement ERF-CSRBoost are the same in this
 file and in an older snapshot of the script (a comment in it refers to a reorganisation after 4 May
 2026; compared by syntax tree in a review pass, not by this repository). Consequences:
@@ -65,7 +67,7 @@ file and in an older snapshot of the script (a comment in it refers to a reorgan
 - Running this script on CB gives the corrected CB values (positive class R), which match the June
   record, not the April ones (section 8).
 - Running it on ESR and DCCC works; the older snapshot could not load those two datasets.
-- The Python and library versions of the stored runs were not recorded.
+- The Python and library versions of the stored April and June runs were not recorded (the November extension recorded its library versions in its `protocol.json`).
 
 The exploratory run in `results/exploratory_18_dataset_run/` was made with a different script that
 imports this runner's CSRBoost and ERF-CSRBoost functions. That script is **not included**: the
@@ -227,15 +229,15 @@ each dataset and method (100 expected) and look for NaN. The stored June record 
 
 ## 7. Comparing a fresh run with the stored records
 
-Do not expect bit-for-bit agreement: the library versions of the stored runs are unknown, and in the
+Do not expect bit-for-bit agreement: the library versions of the stored April and June runs are unknown, and in the
 author's own runs the small datasets matched exactly while ESR and DCCC differed in the fourth
 decimal between the 28 April run and the June reruns, for a reason that was not established. Compare
 dataset means (see the snippet in `../docs/RESULTS_EVIDENCE.md` section 10) against the June record,
-which is the headline record and has the corrected CB rows, not against the April run.
+which is the June record and has the corrected CB rows, not against the April run.
 
 ## 8. The three result sets
 
-**June four-way record (headline).** It is the April run with the rows of three datasets, ESR, DCCC
+**June four-way record.** It is the April run with the rows of three datasets, ESR, DCCC
 and CB, replaced by rows from June 2026 reruns that used the corrected loaders. Only CB changes
 materially, because the positive class changed: in the April run the larger class (mines, 111 rows)
 was the positive class; in the corrected run the smaller class (rocks, 97 rows) is. The twelve other
@@ -272,7 +274,7 @@ this release analyses only CSRBoost, ERF and BRF. The filter keeps the header an
 order (5,400 rows remain; SHA-256
 `560ef44c69abd862118237669f5d1c6a44a897ded571e46f4716d03bfe629a5f`). The `pick` column is empty
 in every row of the published file and is not analysed. The run's script is not included, so the run cannot be reproduced from this
-repository; these are historical raw fold records only. Its protocol differs from the headline
+repository; these are historical raw fold records only. Its protocol differs from the June
 record (each method is trained on 70 percent of each training fold; the balanced random forest has
 1,000 trees; five external datasets were added; ESR and DCCC were skipped). It is uncorrected and
 exploratory. See `../docs/RESULTS_EVIDENCE.md`, section 8, for the analysis and every caveat.

@@ -1,13 +1,13 @@
 # Limitations and verification
 
 <!-- november-2026-results -->
-The latest result record is the [November 2026 aligned extension](https://github.com/SherwanAli0/erf-csrboost/tree/main/research/results/november2026_aligned_extension): 2,000 new successful fits, a qualified 16/20 mean-AP comparison against CSRBoost, mixed raw-RF performance and higher compute cost. Earlier sections below describe historical checks at their recorded dates and do not include the new experiment.
+The latest result record is the [November 2026 aligned extension](https://github.com/SherwanAli0/erf-csrboost/tree/main/research/results/november2026_aligned_extension): 2,000 new completed fits over five added datasets. Over 20 datasets ERF has higher mean AP than reimplemented CSRBoost on 16 (lower on 4) and than a 100-tree plain random forest on 12 (tied on 2, lower on 6; mean AP difference -0.0008, neither an advantage nor equivalence). Claims, limitations and related work: [RESEARCH-EVIDENCE.md](../research/RESEARCH-EVIDENCE.md). Earlier sections below describe historical checks at their recorded dates and do not include the new experiment.
 <!-- /november-2026-results -->
 
 What this project does not do or does not establish, what was checked and how, and what was not
 checked. Nothing here is a claim of correctness beyond the checks listed.
 
-ERF-CSRBoost is an experimental extension of CSRBoost and an unpublished research prototype. The
+ERF-CSRBoost is an experimental extension of CSRBoost and a research prototype that is not peer reviewed. The
 web application is a demonstration, not a production service.
 
 Status labels: **newly executed** (run during release preparation and the output was read),

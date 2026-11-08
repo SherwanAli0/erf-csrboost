@@ -1,13 +1,13 @@
 # Results evidence
 
 <!-- november-2026-results -->
-The latest result record is the [November 2026 aligned extension](https://github.com/SherwanAli0/erf-csrboost/tree/main/research/results/november2026_aligned_extension): 2,000 new successful fits, a qualified 16/20 mean-AP comparison against CSRBoost, mixed raw-RF performance and higher compute cost. Earlier sections below describe historical checks at their recorded dates and do not include the new experiment.
+The latest result record is the [November 2026 aligned extension](https://github.com/SherwanAli0/erf-csrboost/tree/main/research/results/november2026_aligned_extension): 2,000 new completed fits over five added datasets. Over 20 datasets ERF has higher mean AP than reimplemented CSRBoost on 16 (lower on 4) and than a 100-tree plain random forest on 12 (tied on 2, lower on 6; mean AP difference -0.0008, neither an advantage nor equivalence). Claims, limitations and related work: [RESEARCH-EVIDENCE.md](../research/RESEARCH-EVIDENCE.md). Earlier sections below describe historical checks at their recorded dates and do not include the new experiment.
 <!-- /november-2026-results -->
 
 What the stored ERF-CSRBoost results are, how they were produced, what was recomputed from the
 saved records, and what cannot be concluded from them.
 
-ERF-CSRBoost is an experimental extension of CSRBoost and an unpublished research prototype. The
+ERF-CSRBoost is an experimental extension of CSRBoost and a research prototype that is not peer reviewed. The
 numbers below are a historical artifact of an exploratory comparison on development datasets. They
 are not an independent final evaluation and they do not establish a general improvement.
 
@@ -37,9 +37,9 @@ not show a better method. Global mean AUC moved from 0.9386 to 0.9383 for ERF-CS
 
 | Record | Role | Folder under `research/results/` | Rows |
 |---|---|---|---|
-| June four-way record | Headline record. 15 datasets x 4 methods x 100 folds; the record behind the graduation thesis tables | `comparison_june2026_four_way/` | 6,000 |
+| June four-way record | Historical AUC record. 15 datasets x 4 methods x 100 folds; the record behind the graduation thesis tables | `comparison_june2026_four_way/` | 6,000 |
 | April run `comparison_20260428_141315` | The earlier run (28 to 29 April 2026), which the first public version of this repository used as its headline. Its ESR, DCCC and CB rows were superseded by June reruns | `comparison_20260428_141315/` | 6,000 |
-| Exploratory 18-dataset run | Supplement, not the headline. 18 datasets x 3 methods x 100 folds, a different protocol (section 8) | `exploratory_18_dataset_run/` | 5,400 |
+| Exploratory 18-dataset run | Exploratory supplement. 18 datasets x 3 methods x 100 folds, a different protocol (section 8) | `exploratory_18_dataset_run/` | 5,400 |
 
 Release artifacts and their SHA-256 are listed in section 11.
 
@@ -513,7 +513,7 @@ dataset-level tests are not significant (p 0.7615 and 0.4543, section 4.5).
 
 ## 8. Extended exploratory run (18 datasets)
 
-This is an **exploratory supplement, not the headline record**. It is a historical artifact: the raw
+This is an **exploratory supplement**. It is a historical artifact: the raw
 per-fold records of one run that the author made after the thesis record, with a different protocol
 and 5 datasets that are not in the 15-dataset record. Everything in this section is recomputed from
 the published records; nothing was retrained. Read it with the caveats in section 8.4.
@@ -723,4 +723,4 @@ included, equal to the CSRBoost and ERF-CSRBoost rows of the June record): SHA-2
 `7b1e353bba72c4221fa5c811624111fe2d1b805683934e4c6475ce0ef4532ff2`.
 
 The numbers in sections 2 to 8 were recomputed from the published files. The recomputation scripts
-are not part of the repository; the snippet in section 10 reproduces the headline values.
+are not part of the repository; the snippet in section 10 reproduces the main values.
