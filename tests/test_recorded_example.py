@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import math
+import platform
 import os
 from pathlib import Path
 import re
@@ -154,6 +155,9 @@ class Regeneration(unittest.TestCase):
             self.assertEqual((Path(folder) / "recorded_example_data.csv").read_bytes(), saved_csv)
             html = (Path(folder) / "recorded-example.html").read_text(encoding="utf-8")
         saved = json.loads((WEB / "recorded-example.json").read_bytes())
+        for outcome in regenerated['outcomes'].values():
+            if outcome['status']=='success':
+                self.assertEqual(outcome['report']['tool']['python'],platform.python_version())
         differing = diff_paths(saved, regenerated)
         rest = [item for item in differing if not any(re.fullmatch(pattern, item) for pattern in VOLATILE)]
         self.assertEqual(rest, [], f"fields that changed and are not times, timings or memory: {rest[:10]}")

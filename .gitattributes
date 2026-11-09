@@ -19,3 +19,7 @@ research/results/november2026_aligned_extension/* -text
 evaluation/examples/*.csv text eol=lf
 evaluation/examples/output/* -text
 evaluation/tests/fixtures/* -text
+
+# Canonical recorded report copies must serialize identically on Windows and Linux.
+evaluation/src/rare_event_eval/web/recorded-example.* text eol=lf
+evaluation/examples/output/recorded-example.* text eol=lf
