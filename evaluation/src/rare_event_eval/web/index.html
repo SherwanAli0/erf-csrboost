@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Evaluate imbalanced classification: compare models, examine split and threshold choices, and export an inspectable report.">
+  <title>Overview | FixYourDataset</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="preflight.js"></script>
+  <script defer src="scoring-core.js"></script>
+  <script defer src="demo-data.js"></script>
+  <script defer src="util.js"></script>
+  <script defer src="content.js"></script>
+  <script defer src="models.js"></script>
+  <script defer src="report-view.js"></script>
+  <script defer src="predictions.js"></script>
+  <script defer src="api-client.js"></script>
+  <script defer src="flow.js"></script>
+  <script defer src="views.js"></script>
+  <script defer src="recorded-example.js"></script>
+  <script defer src="tools.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="site-header">
+  <a class="brand" href="#/overview"><span class="brand-icon" aria-hidden="true">F</span>FixYourDataset</a>
+  <div class="header-tools"><span id="runtime-badge" class="badge">Checking the page mode</span><a href="#/tools" data-action="route" data-route="tools">Data tools</a><a id="classic-link" href="/classic" hidden>Previous interface</a></div>
+  <nav class="main-nav" aria-label="Main">
+    <div class="main-tabs" role="tablist" aria-label="Sections">
+      <button type="button" role="tab" id="tab-overview" aria-selected="true" aria-controls="panel-overview" data-tab="overview">Overview</button>
+      <button type="button" role="tab" id="tab-analyze" aria-selected="false" aria-controls="panel-analyze" data-tab="analyze" tabindex="-1">Analyze a dataset</button>
+      <button type="button" role="tab" id="tab-evaluate" aria-selected="false" aria-controls="panel-evaluate" data-tab="evaluate" tabindex="-1">Evaluate predictions</button>
+      <button type="button" role="tab" id="tab-research" aria-selected="false" aria-controls="panel-research" data-tab="research" tabindex="-1">Research</button>
+      <button type="button" role="tab" id="tab-how" aria-selected="false" aria-controls="panel-how" data-tab="how" tabindex="-1">How it works</button>
+    </div>
+  </nav>
+</header>
+<main id="main" tabindex="-1">
+  <noscript><p class="notice">This workbench needs JavaScript. Without it, read the project README for the command-line tools.</p></noscript>
+  <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview"></section>
+  <section id="panel-analyze" role="tabpanel" aria-labelledby="tab-analyze" hidden><div id="analyze-root"></div><div id="data-tools-root" hidden></div></section>
+  <section id="panel-evaluate" role="tabpanel" aria-labelledby="tab-evaluate" hidden>
+    <h2 tabindex="-1">Evaluate predictions you already have</h2>
+    <p class="section-intro">Your file needs the true labels and one or more score columns. Higher scores must mean the positive class you name. No model is trained.</p>
+    <aside class="privacy" aria-label="Privacy in this mode"><h3>Privacy: browser only</h3><p id="prediction-privacy"></p></aside>
+    <p class="notice" id="prediction-cannot" role="note"></p>
+    <div id="prediction-errors"></div>
+    <div class="workspace">
+      <form id="prediction-form" class="card" novalidate>
+        <div class="field"><label for="prediction-file">UTF-8 prediction CSV, up to 2 MB</label><input id="prediction-file" type="file" accept=".csv,text/csv"></div>
+        <button type="button" class="btn" id="use-prediction-example">Load the fictional example</button>
+        <div class="field"><label for="prediction-label">True-label column</label><select id="prediction-label"><option value="">Load a file first</option></select></div>
+        <div class="field"><label for="prediction-positive">Positive label</label><input id="prediction-positive" type="text" aria-describedby="prediction-label-hint"><p class="hint" id="prediction-label-hint">Type the label exactly as it appears in the file, for example event.</p></div>
+        <div class="field"><label for="prediction-negative">Negative label</label><input id="prediction-negative" type="text"></div>
+        <fieldset><legend>Score columns</legend><div id="score-columns"></div></fieldset>
+        <div class="field"><label for="score-kind">Score interpretation</label><select id="score-kind"><option value="probability">Probability, between 0 and 1</option><option value="ranking">Ranking score, higher means positive</option></select></div>
+        <div class="field"><label for="prediction-threshold">Fixed threshold</label><input id="prediction-threshold" type="text" inputmode="decimal" value="0.5"></div>
+        <div class="field"><label for="prediction-budget">Review budget, a number of cases</label><input id="prediction-budget" type="text" inputmode="numeric" value="3"></div>
+        <fieldset><legend>Optional cost assumptions</legend><p class="hint">Use one unit throughout. These are assumptions, not measured savings.</p>
+          <div class="field"><label for="cost-fp">Cost per false alarm</label><input id="cost-fp" type="text" inputmode="decimal"></div>
+          <div class="field"><label for="cost-fn">Cost per missed positive</label><input id="cost-fn" type="text" inputmode="decimal"></div>
+          <div class="field"><label for="cost-review">Cost per flagged case</label><input id="cost-review" type="text" inputmode="decimal" value="0"></div>
+        </fieldset>
+        <button type="submit" class="btn btn-primary">Evaluate predictions</button>
+        <p id="prediction-status" class="status-line" role="status"></p>
+      </form>
+      <div id="prediction-results"><div class="empty-state"><h3>Start with explicit labels</h3><p>Load a CSV or the fictional example. The report and download options appear here.</p></div></div>
+    </div>
+  </section>
+  <section id="panel-research" role="tabpanel" aria-labelledby="tab-research" hidden></section>
+  <section id="panel-how" role="tabpanel" aria-labelledby="tab-how" hidden></section>
+</main>
+<footer>
+  <div><strong>FixYourDataset</strong><p>Code and method decisions by Sherwan Ali.</p><p id="footer-version"></p></div>
+  <p>Research prototype. Not peer reviewed.</p>
+  <a href="https://github.com/SherwanAli0/erf-csrboost/tree/main/research/results/november2026_aligned_extension" rel="noreferrer">Source and saved results: erf-csrboost</a>
+  <a href="https://github.com/SherwanAli0/csrboost-audit" rel="noreferrer">Replication audit: csrboost-audit</a>
+</footer>
+<div id="live-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

@@ -1,42 +1,62 @@
-# Deploying to Fly.io
+# Deployment and rollback
 
-The app runs on Fly.io as `fixyourdataset` (https://fixyourdataset.fly.dev): one always-on machine in
-Frankfurt (`fra`, shared CPU, 1 GB RAM) with an encrypted 1 GB volume mounted at `/data`. It listens on
-`0.0.0.0:$PORT` (7860) and exposes `/healthz` for the platform check.
+FixYourDataset runs at https://fixyourdataset.fly.dev on the existing Frankfurt Fly application,
+one shared CPU, 1 GB memory and its encrypted 1 GB `/data` volume. Deployment is manual and changes
+the image only. Do not create an app, machine, volume or paid builder, or change machine size,
+region, secrets, always-on behavior, concurrency or timeout settings.
 
-## Requirements
-- The Fly CLI, logged in (`fly auth login`).
-- Do not create a new app or volume. All commands below use `-a fixyourdataset`.
+## Prepare
 
-## Before any update
-1. Run the tests from the repository root: `python backend/test_head.py` (and `python backend/test_torture.py`).
-2. Save the current state so you can roll back:
-   - `fly status -a fixyourdataset`
-   - `fly image show -a fixyourdataset` (note the image tag and digest)
-   - `fly machine list -a fixyourdataset --json` (keep the machine config)
+1. Complete source review, tests, clean package installation, public CI and the constrained image check.
+2. Merge the reviewed public PR normally. Synchronize only reviewed release files into the private
+   deployment checkout; preserve private-only settings and compare shared file hashes.
+3. Read `fly machine list -a fixyourdataset --json`, `fly image show -a fixyourdataset` and
+   `fly volumes list -a fixyourdataset --json`. Save a private redacted configuration receipt and the
+   previous immutable image for rollback. Never publish the complete environment or credentials.
+4. Confirm no machine command overrides the image CMD. Do not delete data or older images.
 
-## Update only the code (recommended)
-The live HTTP service has `idle_timeout = 900` on its ports. `fly.toml` now states the same value, but
-the safest update keeps every other machine setting untouched by changing only the image:
+## Local build and image-only update
 
-1. Build and push an image without deploying: `fly deploy -a fixyourdataset --build-only --push --image-label <label>`
-2. Update the machine to that image: `fly machine update <machine-id> -a fixyourdataset --image registry.fly.io/fixyourdataset:<label>`
-3. Verify: `fly status -a fixyourdataset` shows the machine started with a passing check, then request
-   `https://fixyourdataset.fly.dev/healthz` and `https://fixyourdataset.fly.dev/` with GET and HEAD.
+The image installs the locked runtime and package wheel and starts `python backend/api.py` on 7860.
+Use the exact reviewed public source commit as the public release id:
 
-## Roll back
-`fly machine update <machine-id> -a fixyourdataset --image registry.fly.io/fixyourdataset:<previous-tag>`
-using the tag and digest saved before the update.
+```bash
+docker build --build-arg FYD_RELEASE_ID=<reviewed-public-commit> -t registry.fly.io/fixyourdataset:<release-label> .
+python -B tools/container_smoke.py --image registry.fly.io/fixyourdataset:<release-label>
+fly auth docker
+docker push registry.fly.io/fixyourdataset:<release-label>
+fly machine update <existing-machine-id> -a fixyourdataset --image registry.fly.io/fixyourdataset@sha256:<pushed-digest> --yes
+```
 
-## Notes
-- The build context excludes `data_local/` (local analytics) and Markdown files through `.dockerignore`.
-- Usage data lives on the `/data` volume and survives updates. The app keeps no automatic retention
-  limit and has no purge job: usage events stay until the volume data is deleted. The README section
-  "What happens to uploaded files and server state" says exactly what an event contains.
-- `STATS_KEY` must be set as a Fly secret on the app. It protects the owner statistics page (the page
-  returns 404 without it) and it is the secret in the visitor hash. If it is not set, the statistics
-  page is disabled and the visitor tag is computed with a constant key, which is weaker. Never write
-  its value in this repository, in a commit message or in documentation. Changing a Fly secret can
-  restart the machine, so treat it like an update (see the Fly documentation for `fly secrets`).
-- Fly builds the image from the repository files and serves only the running app. Do not commit
-  secrets, volume data or `data_local/`.
+The smoke overrides the source id with `container-check` only in its disposable test container.
+Build locally to avoid provisioning a paid remote builder. Do not run an unrestricted `fly deploy`
+that could reconcile unrelated settings. Do not change existing Fly secrets for this release.
+
+## Acceptance
+
+Confirm Fly checks, GET/HEAD on `/`, `/healthz`, assets and `/classic`, and GET `/api/v1/version`.
+The latter must identify the reviewed source and package/app versions. Explore the example without
+training; check small fictional numeric and mixed jobs, exports, foreign-capability denial,
+cancellation and integrated tools. Compare resource/service/mount/environment configuration before
+and after without printing secret values. Preserve `/data`, its analytics and existing secret setup.
+
+## Rollback
+
+If readiness, core journeys, privacy or numerical consistency fail, or the service cannot remain
+healthy within its allocation, update the same machine to the saved immutable image:
+
+```bash
+fly machine update <existing-machine-id> -a fixyourdataset --image <saved-previous-image> --yes
+```
+
+Verify health and the prior basic journey. Do not delete `/data` or create a replacement volume.
+There is no destructive analytics migration. Record failure evidence and continue the fix locally;
+rolling back does not make a failed release complete.
+
+## Storage
+
+The narrow build context excludes research data, Git history, local environments, analytics and
+private evidence. Only explicit runtime source/assets, samples and the package wheel enter the image.
+The existing analytics remains at `/data/usage.db`; job storage uses a separate temporary root.
+`STATS_KEY` stays in Fly secrets and must never appear in a repository or command output.
+See [resource limits](docs/RESOURCE_LIMITS.md) and [verification](docs/RELEASE-VERIFICATION.md).

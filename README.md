@@ -1,8 +1,27 @@
-# ERF-CSRBoost: Resampled Forest Ensembles for Imbalanced Classification
+# FixYourDataset: Imbalanced Classification Workbench
+
+Compare models on held-out data, evaluate saved predictions in your browser and export the settings
+behind a result. The workbench uses the reusable `rare-event-eval` package and includes ERF-CSRBoost
+as one named model recipe.
+
+[Try FixYourDataset](https://fixyourdataset.fly.dev) |
+[Package and CLI](evaluation/README.md) |
+[Engineering case study](docs/ENGINEERING-CASE-STUDY.md) |
+[Architecture](docs/ARCHITECTURE.md) |
+[Research evidence](research/RESEARCH-EVIDENCE.md)
+
+Start with **Explore an example** for a recorded synthetic run, or **Evaluate predictions** for
+browser-only analysis without uploading a CSV. Hosted training and row exports are explicit actions.
+
+![FixYourDataset workbench showing a recorded synthetic comparison](docs/assets/workbench-desktop.png)
+
+## Research context: ERF-CSRBoost
 
 ERF-CSRBoost combines clustered undersampling, SMOTE and bagged random forests to study classification with imbalanced labels. Its implementation averages the predictions of 20 resampled forests, each containing 50 trees.
 
 This repository contains the research implementation, recorded evaluations and **FixYourDataset**, a web application for comparing models and examining the effects of resampling and data leakage.
+
+Public source repository: https://github.com/SherwanAli0/erf-csrboost
 
 **Highlights** (November 2026 evaluation of ERF-CSRBoost, "ERF" below; 20 datasets; mean average precision (AP) per dataset over 100 folds; counts of datasets):
 
@@ -46,116 +65,84 @@ The decision threshold is 0.5.
 - Research status: experimental and not peer reviewed. A fixed number of trees and bags was used with no
   tuning; whether it scores higher depends on the dataset (section 5).
 
-## 2. What the app implements and how it differs from the research runner
+## 2. FixYourDataset: evaluation workbench
 
-FixYourDataset is a single-page web app with a small Python server (standard library
-`http.server`, scikit-learn, imbalanced-learn). You load a bundled sample or upload a file (30 MB
-limit). The file picker lists `.csv`, `.xlsx`, `.xls`, `.data`, `.dat`, `.names`, `.txt`, `.tsv` and
-`.tab`. The server's conversion step also reads JSON, Stata (`.dta`) and ZIP or GZIP archives of
-these (read from the code); the picker does not list them, so drop such a file onto the upload
-area or send it to the API (section 3). The app detects the delimiter and the target column and
-then:
+FixYourDataset combines a FastAPI service, bounded subprocess workers and the reusable
+`rare-event-eval` Python package. The browser opens a recorded example without training a model.
+Its saved-prediction evaluator works in the browser without uploading the CSV.
 
-1. Splits first, resamples the **training** split only, and never touches the held-out test rows.
-2. Returns a balanced training file, the untouched test file, an illustrative pipeline snippet and a
-   receipt of what was done.
-3. Compares three models on the same held-out rows: a plain random forest with class weights,
-   CSRBoost (a port of the published recipe), and ERF-CSRBoost. Confusion matrices, a threshold
-   slider (exploratory, see below) and a headline verdict that includes the cases where a method
-   does not help.
-4. Runs a "Leakage Lab" that shows what happens when you resample before splitting, a ranked risk
-   table on unseen rows, and a "score your own file" option.
+- **Analyze a dataset:** confirm target, exact labels and predictor exclusions; choose a stratified,
+  grouped, exact-feature-grouped or chronological split; compare explicit model recipes on the same
+  held-out rows. Preprocessing and resampling fit training data only. Validation data selects thresholds.
+- **Evaluate predictions:** inspect AP, ROC AUC, calibration, thresholds, review budgets and hypothetical
+  costs on saved binary predictions. Exploring labelled test predictions does not create new independent evidence.
+- **Data tools:** resample training data, run the controlled Leakage Lab or refit a model to score new rows.
+  Row-level CSVs and mappings require explicit opt-in. Scoring refits on all labelled rows and claims no
+  evaluation metrics for that refit. The deliberately contaminated lab arm is a teaching intervention;
+  either arm can score higher and it does not estimate leakage in an uploaded pipeline.
+- **Export evidence:** standalone HTML, versioned JSON, effective configuration and a replay bundle.
+  Aggregate downloads omit raw rows. Replay requires the user's own data and recorded dependencies.
+- **Inspect research:** separate the November comparison, pilot, adaptive campaign and CSRBoost audit.
+  Their protocols and limitations remain distinct from the application's procedure.
 
-Two points about leakage handling: the leaky arm of the Leakage Lab resamples all rows on purpose,
-and "score your own file" trains on every labelled row including the held-out ones, by design. Neither
-feeds the reported test metrics.
+The package registry names recipes and capacities, including an unweighted 100-tree forest,
+class-weighted and balanced forests, logistic regression, gradient boosting and ERF's 20 bags of
+50 trees. The application adapter supports numeric and categorical predictors. Its recipes and
+approximately 60/20/20 partitions **do not reproduce the historical research tables**.
+See [recipe differences](docs/RECIPE-DIFFERENCES.md) and [capability matrix](docs/CAPABILITY-MATRIX.md).
 
-**The app's ERF is adapted from the research runner. It is not numerically identical to it, and the
-app does not reproduce the research tables.** It keeps the bag count (20), tree count (50), the seed
-rule and the probability averaging. It differs in preprocessing (imputation, one-hot columns and
-SMOTE-NC for mixed data), in the scaling used for SMOTE, in the fallback when SMOTE fails, in the
-training-size cap (4,000 rows in the single-split comparison) and in evaluation (one stratified
-75/25 split by default, against 100 repeated cross-validation folds in the research runner). The
-full map is in [`docs/IMPLEMENTATION_MAP.md`](docs/IMPLEMENTATION_MAP.md).
-
-The comparison panel is illustrative: one split, no uncertainty estimate, models of unequal
-capacity (a 200-tree forest, 1,000 ERF trees, an AdaBoost of 50 trees). The threshold slider is
-exploratory because it uses the labelled test rows; the headline metrics and the verdict stay at 0.50.
+The previous interface remains at `/classic` for compatibility. It uses the preserved legacy engine
+and differs in target inference, model recipes, fallback behavior and evaluation. Its old receipt is
+not the new aggregate report. Legacy-only methods remain clearly separate from the integrated tools.
 
 ## 3. Run the app locally
 
-Needs Python 3.11. The commands below were run on Windows 11 with Python 3.11.9; Linux and macOS
-were not tested.
+Use Python 3.11 or 3.12 and Node 18+ for browser tests. Dependency versions are locked in
+`requirements-lock.txt`; build tools are locked separately. From a fresh clone:
 
-Windows (PowerShell):
-
-```
-py -3.11 -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python backend\server.py
-```
-
-macOS or Linux:
-
-```
-python3.11 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python backend/server.py
+```powershell
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements-lock.txt -r requirements-build.txt
+.venv\Scripts\python -m pip install --no-build-isolation --no-deps -e ./evaluation
+.venv\Scripts\python -B backend/api.py
 ```
 
-Then open http://localhost:8600 (set the `PORT` environment variable to use another port).
+On Linux use `python3.11` to create the environment and `.venv/bin/python` for subsequent commands.
+Open http://localhost:7860. `PORT` changes the port. The service binds all interfaces and has no
+accounts; expose it deliberately. Dataset/job capabilities protect private result access. They stay
+in browser memory and authorization headers, never URLs or browser storage.
 
-**Network exposure.** The server listens on all network interfaces (`0.0.0.0`), so while it runs it
-is reachable from other devices on the same network at your machine's address, not only at
-`localhost`. It has no login, and there is no setting for the listening address; this release does
-not change the code. To keep it off the network, run it only on a network you trust, block the port
-in your firewall, or run the Docker image with the port published to the loopback address only
-(for example `docker run -p 127.0.0.1:8600:7860 <image>`; the image listens on port 7860). The
-Docker route was not tested here.
-
-`requirements.txt` pins pandas 2.3.3, numpy 2.2.6, scikit-learn 1.8.0 and imbalanced-learn 0.14.1,
-and lists openpyxl and xlrd for Excel files. numpy is pinned to the tested version.
-
-Run the tests from the repository root, with the virtual environment's interpreter (Windows shown;
-on macOS or Linux use `.venv/bin/python`). If you activate the environment first, `python` is that
-interpreter and the same commands work with `python` in place of the path. The two `node` tests need
-Node 18 or newer and no packages.
-
-```
-.venv\Scripts\python backend/test_head.py
-.venv\Scripts\python backend/test_rare_split_guard.py
-.venv\Scripts\python backend/test_small_fixes.py
-.venv\Scripts\python backend/test_sample_cards.py
-.venv\Scripts\python backend/test_torture.py        # several minutes
-node frontend/test_verdict.js
-node frontend/test_receipt.js
+```bash
+python -B -m unittest discover -s tests
+cd evaluation
+python -B -m unittest discover -s tests
+cd ..
+node evaluation/tests/test_browser_parity.js
+python -m build --no-isolation --outdir dist ./evaluation
 ```
 
-What these tests check, and what was not checked, is in
-[`docs/LIMITATIONS_AND_VERIFICATION.md`](docs/LIMITATIONS_AND_VERIFICATION.md).
+The CI workflow also runs legacy regression scripts, installs the wheel in a fresh environment and
+tests a Linux container at one CPU and 1 GB. The locally executed release checks are listed in
+[release verification](docs/RELEASE-VERIFICATION.md); CI outcomes are visible in
+[GitHub Actions](https://github.com/SherwanAli0/erf-csrboost/actions).
 
-The app runs on Fly.io as `fixyourdataset` (Frankfurt, one always-on machine). `DEPLOY_FLY.md`
-describes the update and rollback procedure. The Dockerfile binds the app to `$PORT`.
+```bash
+docker build -t fixyourdataset .
+python -B tools/container_smoke.py --image fixyourdataset
+docker run --rm -p 127.0.0.1:7860:7860 --memory=1g --cpus=1 fixyourdataset
+```
+
+The image installs the package wheel and starts one Uvicorn worker. No research datasets, private
+prediction files, credentials or analytics database belong in the image. Deployment remains manual
+to the existing Fly application; see [deployment and rollback](DEPLOY_FLY.md).
 
 ### API
 
-The page talks to the server through a small JSON interface that you can also call directly. It is
-the app's own interface, not a versioned or stable API, and it has no authentication. Request
-bodies are JSON; a failed POST returns status 400 with `{"ok": false, "error": "..."}`. Responses
-carry `Cache-Control: no-store`. The source of truth is the docstring and handlers in
-[`backend/server.py`](backend/server.py).
-
-| Method and path | Purpose |
-|---|---|
-| `GET /` | The single-page app (`frontend/index.html`) |
-| `GET /healthz` (also `/health`) | Returns `ok`; the Fly.io health check |
-| `GET /api/samples` | List of the four bundled sample datasets |
-| `GET /api/sample?name=<file>` | CSV text of one bundled sample |
-| `POST /api/convert` | `{b64, name}`: decodes an uploaded file (text encodings, ZIP or GZIP, Excel, JSON, Stata) and returns `{ok, csv, notes}`; 30 MB limit |
-| `POST /api/profile` | `{csv}`: column profile and suggested target column |
-| `POST /api/analyze` | `{csv, target, method, do_classify, classifier, folds, src}`: split first, resample the training split only, compare the three models, return the balanced and test files and the receipt; `folds` is clamped to 1 to 100 |
-| `POST /api/score` | `{train_csv, target, method, classifier, score_csv}`: train on every labelled row and return a risk score and flag for each new row |
-| `GET /stats`, `GET /whoami/<key>` | Owner-only usage page and owner cookie; return 404 unless the owner's `STATS_KEY` is given (section 6) |
+The [HTTP API](docs/API.md) documents versioned datasets/jobs, capabilities, typed errors,
+integrated tools and compatibility routes. Health (`/healthz`, `/health`), pages and static assets
+support GET and HEAD. `/api/v1/version` is a GET endpoint. There are no accounts or per-visitor quotas.
+Only one heavy job runs at a time, with one waiting slot. Limits, cancellation, expiry and restart
+semantics are in [resource limits](docs/RESOURCE_LIMITS.md).
 
 ## 4. Run the research runner and obtain the data
 
@@ -360,33 +347,34 @@ the same document.
 
 ## 6. What happens to uploaded files and server state
 
-- **Upload contents** are decoded and processed in memory. The server writes no temporary file and no
-  cache of an upload, and the outputs (balanced file, test file, scored file) are returned in the
-  response and not kept. Responses carry `Cache-Control: no-store`. Your browser keeps the data in a
-  page variable while the page is open. (Checked by reading the code and by running the server through
-  an upload, profile, analysis and scoring request and listing the files it created.)
-- **A usage log is stored.** The server keeps a SQLite file with one row per event: timestamp, UTC
-  day, kind (`visit`, `analyze` or `score`), a short detail (the demo file name or the word `upload`,
-  plus the fold count), the HTTP referrer exactly as the browser sent it (up to 200 characters, so it
-  can include a query string), an owner flag, and a visitor tag. The tag is the first 12 hex
-  characters of a SHA-256 hash of the IP address, the user agent, the day and a server secret
-  (`STATS_KEY`). It changes daily and is pseudonymous, not anonymous. Not stored: the IP address
-  itself, names, file contents, file names, column names. Visitors receive no cookie.
-- **Weaker if `STATS_KEY` is unset.** Without the secret the hash key is a constant, and an IP
-  address could be guessed back from a tag if the database ever leaked. Set `STATS_KEY` on any
-  deployment (`DEPLOY_FLY.md`). Whether it is set on the live app was not verified.
-- **Retention.** There is no purge job and no deletion route. Events stay until the database file or
-  the volume holding it is deleted. On Fly the file lives on the `/data` volume; locally it is
-  `data_local/usage.db` (ignored by Git).
-- **Platform logs.** The hosting provider's own access logs are outside the application and were
-  not inspected.
-- An owner-only statistics page exists and returns 404 without the owner's key.
+- **Hosted analysis uploads data.** The service writes private temporary dataset, request and result
+  files. Default idle dataset and finished-job lifetimes are 30 minutes. Expiry deletes files; a restart
+  interrupts work and removes the coordinator's prior temporary state. This is not durable storage.
+- **Prediction evaluation stays in the browser.** It needs no model service or upload. The recorded
+  example contains seeded synthetic data, is labelled as a recorded app run and is not a research result.
+- **Private downloads:** capabilities are returned once and held in page memory. No account/login is
+  provided. Reloading loses browser access. Default reports contain aggregates, settings and diagnostics,
+  not raw data. Optional row exports can contain sensitive information; keep them private.
+- **Compatibility and tools:** legacy requests and new data-tool inputs run in bounded child processes.
+  Their temporary request/result files follow the coordinator's lifetime and storage limits. Tool row
+  files are returned directly to their caller only after explicit opt-in. There is no public result URL.
+- **Usage statistics:** existing SQLite events and daily pseudonymous visitor hashes remain. The event
+  table stores timestamp/day, kind, short detail, HTTP referrer (up to 200 characters), owner flag and a
+  12-character visitor hash. It does not intentionally record uploaded rows, capabilities or file/column
+  names. Referrers can contain query strings. New pages send `Referrer-Policy: no-referrer`.
+- **Retention and secrets:** usage records remain on `/data/usage.db` on Fly until deliberately purged;
+  there is no automatic analytics purge. `STATS_KEY` protects owner statistics and keys visitor hashes;
+  without it statistics are disabled and hashes use a weaker constant key. Secrets are never included in
+  exports. The release preserves the existing volume and secret configuration.
+- Responses use `Cache-Control: no-store`. This is a small public research/engineering demonstration,
+  not an upload service for sensitive or regulated data. There is no per-visitor fairness guarantee.
 
 ## 7. Files and licences
 
 | Path | What it is | Licence |
 |---|---|---|
 | `backend/` | Python server, engine, models (plain baseline, CSRBoost port, ERF-CSRBoost), usage log, tests. `gen_samples.py` writes three unbundled synthetic example files; it does not regenerate `samples/` | MIT |
+| `evaluation/` | Reusable Python package, browser workbench, synthetic examples and tests; package-specific notices included | MIT for code; documentation/results follow root scope |
 | `frontend/` | `index.html` (single-page app) and its two Node test files | MIT |
 | `research/scripts/` | The research runner | MIT |
 | `research/results/` | Per-fold records (and, for the June and April records, per-dataset summaries) of the June four-way record, the earlier April run and an exploratory 18-dataset run (metrics only; the exploratory file is a filtered copy and its script is not included, see `research/README.md`) | CC BY 4.0 |
@@ -420,9 +408,8 @@ The main ones, with the full list in `docs/LIMITATIONS_AND_VERIFICATION.md`:
   stored as NaN, and a failed SMOTE call falls back silently); whether a fallback occurred in the stored
   June record was not established.
 - The app is not numerically equal to the research ERF and uses a single split by default.
-- The tests cover synthetic and bundled data and a set of messy-input cases; browser rendering of
-  some screens, the live deployment beyond a health request, and the documented research command
-  were not verified.
+- Application verification and its precise scope are recorded in [release verification](docs/RELEASE-VERIFICATION.md).
+  The historical research command was not rerun for this application release.
 - In a small two-seed pilot, removing clustering did not lower mean AP while a one-bag variant was lower on 4 of 5 dataset families; neither has been tested at scale.
 - Not a production service.
 

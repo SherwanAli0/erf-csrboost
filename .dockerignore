@@ -10,3 +10,22 @@ fly.toml
 research_*.md
 data_local/
 research/
+!evaluation/README.md
+!evaluation/LICENSE
+!THIRD_PARTY_NOTICES.md
+.venv/
+.venvs/
+.pytest_cache/
+tests/
+evaluation/tests/
+evaluation/examples/
+evaluation/docs/
+**/*.egg-info/
+dist/
+build/
+
+# The evaluation package metadata reads evaluation/README.md (readme field in pyproject.toml).
+# Docker matches "*.md" and "docs/" against the context root only, so these already stay in the
+# build context. The explicit re-includes keep that true if the Markdown rule is ever widened.
+!evaluation/README.md
+!evaluation/LICENSE

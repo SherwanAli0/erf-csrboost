@@ -1,0 +1,2 @@
+# Extra packages for the test suite only (the service itself does not need them).
+httpx==0.28.1      # used by the Starlette test client and by the live-server tests

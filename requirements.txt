@@ -1,6 +1,5 @@
-pandas==2.3.3
-numpy==2.2.6       # pinned to the tested version
-scikit-learn==1.8.0
-imbalanced-learn==0.14.1
-openpyxl>=3.1      # read .xlsx uploads
-xlrd>=2.0          # read legacy .xls uploads
+# Reproducible app dependencies. Install the shared package separately:
+# python -m pip install --no-build-isolation --no-deps ./evaluation
+-r requirements-lock.txt
+fastapi==0.162.2   # HTTP service in backend/api.py (pulls in starlette and pydantic; tested with starlette 1.10.0, pydantic 2.14.3)
+uvicorn==0.54.0    # ASGI server for backend/api.py, run with one worker

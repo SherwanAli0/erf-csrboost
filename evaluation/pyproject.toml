@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rare-event-eval"
+version = "0.3.0"
+description = "Explicit, local evaluation of saved binary classification predictions"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "Sherwan Ali"}]
+dependencies = ["numpy>=1.26,<3", "scikit-learn>=1.6,<2", "threadpoolctl>=3.1,<4"]
+
+[project.optional-dependencies]
+training = ["imbalanced-learn>=0.14,<0.15"]
+# Hosted application adapter. pandas is optional and imported lazily: rare_event_eval.tabular
+# parses and profiles tables with the standard library and only needs pandas to hand back a
+# DataFrame (table_to_dataframe). The saved-prediction core never imports it.
+app = ["pandas>=2.2,<4"]
+
+[project.scripts]
+rare-event-eval = "rare_event_eval.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+rare_event_eval = ["py.typed", "web/*.html", "web/*.css", "web/*.js", "web/*.png", "web/*.json", "web/.nojekyll"]
