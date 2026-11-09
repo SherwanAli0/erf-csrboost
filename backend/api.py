@@ -33,7 +33,7 @@ from pathlib import Path
 import re
 import secrets
 import sys
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, unquote
 
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
@@ -353,7 +353,14 @@ async def create_dataset(request: Request):
     require_media_type(request, ("application/octet-stream", "text/csv"))
     raw = await read_body(request)
     filename = request.headers.get("x-filename", "")[:300]
-    created = await run_in_threadpool(coordinator_of(request).create_dataset, raw, filename)
+    selection = None
+    header = request.headers.get('x-import-selection')
+    if header:
+        if len(header)>4096:raise ApiError(422, 'IMPORT_SELECTION_INVALID', 'Import selection is too long.')
+        selection = parse_json(unquote(header).encode('utf-8'))
+        if not isinstance(selection,dict) or set(selection)-{'member','sheet'} or any(not isinstance(v,str) or len(v)>200 for v in selection.values()):
+            raise ApiError(422, 'IMPORT_SELECTION_INVALID', 'Choose a named sheet or archive member.')
+    created = await run_in_threadpool(coordinator_of(request).create_dataset, raw, filename, selection)
     return json_response(DatasetCreated(**created).model_dump(), 201)
 
 

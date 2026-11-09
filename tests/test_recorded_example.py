@@ -11,6 +11,7 @@ Run from the repository root (the regeneration test takes about half a minute)::
 from __future__ import annotations
 
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -30,7 +31,7 @@ EXAMPLES = support.ROOT / "evaluation" / "examples"
 OUTPUT = EXAMPLES / "output"
 WEB = support.ROOT / "evaluation" / "src" / "rare_event_eval" / "web"
 GENERATOR = EXAMPLES / "make_recorded_example.py"
-VOLATILE = [r".*/created_utc", r".*/(fit_seconds|fit_and_evaluation_seconds|peak_process_rss_bytes|worker_wall_seconds)"]
+VOLATILE = [r".*/created_utc", r".*/tool/python", r".*/environment/python", r".*/(fit_seconds|fit_and_evaluation_seconds|peak_process_rss_bytes|worker_wall_seconds)"]
 
 
 def load_generator():
@@ -42,6 +43,10 @@ def load_generator():
 
 
 def diff_paths(left, right, path=""):
+    # BLAS/libm builds can differ by a last floating-point bit across OSes.
+    # Keep keys, populations, labels, counts and policies exact; bound floats to 1e-12.
+    if isinstance(left,float) and isinstance(right,float):
+        return [] if math.isclose(left,right,rel_tol=0,abs_tol=1e-12) else [path or '/']
     if isinstance(left, dict) and isinstance(right, dict):
         found = []
         for key in sorted(set(left) | set(right)):
@@ -131,6 +136,11 @@ class SavedFiles(unittest.TestCase):
 
 
 class Regeneration(unittest.TestCase):
+    def test_numeric_comparison_tolerates_roundoff_but_detects_material_changes(self):
+        self.assertEqual(diff_paths({'ap':.5},{'ap':.5+1e-13}),[])
+        self.assertEqual(diff_paths({'ap':.5},{'ap':.5+1e-8}),['/ap'])
+        self.assertEqual(diff_paths({'count':10},{'count':11}),['/count'])
+
     def test_the_generator_reproduces_the_table_and_the_aggregate_results(self):
         generator = load_generator()
         saved_csv = (EXAMPLES / "recorded_example_data.csv").read_bytes()
@@ -149,8 +159,8 @@ class Regeneration(unittest.TestCase):
         self.assertEqual(rest, [], f"fields that changed and are not times, timings or memory: {rest[:10]}")
         for name, row in saved["outcomes"].items():   # the headline numbers, explicitly
             again = regenerated["outcomes"][name]["report"]["models"][name]
-            self.assertEqual(again["metrics"], row["report"]["models"][name]["metrics"], name)
-            self.assertEqual(again["threshold_result"], row["report"]["models"][name]["threshold_result"], name)
+            self.assertEqual(diff_paths(again["metrics"], row["report"]["models"][name]["metrics"]), [], name)
+            self.assertEqual(diff_paths(again["threshold_result"], row["report"]["models"][name]["threshold_result"]), [], name)
         self.assertEqual(regenerated["example"], saved["example"])
         self.assertEqual(html, services.render_report_html(regenerated))
         leftovers = [item for item in Path(tempfile.gettempdir()).glob("fyd-recorded-example-*")]

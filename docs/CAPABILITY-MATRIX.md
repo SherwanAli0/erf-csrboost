@@ -18,7 +18,7 @@ are preserved. New analysis uses the shared package; it does not regenerate rese
 | New-row scoring | Logistic, raw forest or ERF; all-labelled-row refit | Fixed 0.5 flag, no refit evaluation claims |
 | Row provenance | Partition indices, synthetic flags, duplicate candidate mapping | Ambiguous source patterns are not assigned invented unique origins |
 | Aggregate exports | JSON, standalone HTML, effective config and replay bundle | Raw rows are omitted by default; user supplies data for replay |
-| Input conversion | Legacy CSV/text/Excel/JSON/Stata/archive parsing through bounded workers | First nonempty spreadsheet sheet/automatic archive member; no new explicit picker yet |
+| Input conversion | CSV/text/Excel/JSON/Stata/archive parsing through bounded workers | New imports require explicit choice for multiple sheets/members; legacy endpoints retain their old selection |
 | Parsing diagnostics | Warnings, skipped rows and format/width refusals | A successful conversion is not proof of complete/valid research data |
 | Privacy | Capability-owned dataset/jobs, memory-only browser tokens, expiry/cancel | No accounts or per-visitor fairness; restart loses active work |
 | Resource controls | One heavy worker plus one waiting slot, light lane, deadlines/memory/storage caps | POSIX memory sampling is not a hard per-worker OS quota |

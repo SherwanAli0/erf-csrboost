@@ -25,6 +25,22 @@ verification, public CI and deployment are separate gates. The working branch is
 Full suite counts, clean-package results and CI/deployment references are added after their actual
 completion. A blocked test or skipped check must not be reported as passing.
 
+The full local application suite passed 244 tests (two platform-specific skips); the package suite
+passed 271 (two optional skips). Later explicit-import coverage added six passing checks and the
+48 service tests passed again. Final public CI checks the final combined source.
+
+The larger local image run passed 49 checks, including 10,000 rows and 100 expanded features with
+logistic regression and ERF both successful, plus concurrent light conversion. Thirty memory samples
+peaked at 431.5 MiB. This covers that particular seeded fixture, not every table within the limits.
+The built wheel installed in a fresh Python 3.11 environment outside the source tree, passed
+`pip check` and generated JSON/HTML reports from the fictional prediction CSV.
+
+The first public matrix exposed a Windows-only newline assertion and cross-platform regeneration
+checks that treated the Python-version field and last-bit floating-point differences as changes in
+results. The test now accepts either newline style, checks environment metadata separately and allows
+at most 1e-12 absolute numerical drift; labels, partitions, counts, keys and policies remain exact.
+This is a verification correction, not a change to model results. Actual CI status remains separate.
+
 ## Repeat the checks
 
 Install the application and build locks, then the package as described in the root README.

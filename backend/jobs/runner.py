@@ -246,7 +246,7 @@ def _cmd_profile(request: dict, job_dir: Path, progress: Progress):
     data = _data_bytes(request, job_dir)
     progress.stage("profiling")
     record = services.profile_for_app(data, str(request.get("filename") or ""), target=request.get("target"),
-                                      limits=_limits(request))
+                                      limits=_limits(request), import_selection=request.get('import_selection'))
     services.assert_strict_json(record)
     return record, False
 
@@ -260,6 +260,7 @@ def _cmd_train(request: dict, job_dir: Path, progress: Progress):
     data = _data_bytes(request, job_dir)
     result = services.train_for_app(data, filename=str(request.get("filename") or ""), limits=_limits(request),
                                     timeout_seconds=request["model_timeout_seconds"], progress=progress.event,
+                                    import_selection=request.get('import_selection'),
                                     **params)
     return _sanitize_training(result), False
 

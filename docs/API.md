@@ -444,6 +444,20 @@ no capability and are not part of the versioned interface.
 
 ## Integrated data tools
 
+### Import table selection
+
+Dataset uploads may send `X-Import-Selection`, a percent-encoded UTF-8 JSON object containing `member`
+and/or `sheet`. If multiple supported members or worksheets exist, the service returns 422
+`APP_IMPORT_SELECTION_REQUIRED` with `selection_kind` and `choices`. The new interface displays a
+selector and resubmits only after a choice. The selection follows the dataset into training and its
+parsing record. The input hash remains the original uploaded bytes. Names are matched in memory,
+never extracted to disk. Unsafe paths, duplicate archive names, excessive expansion and nesting are
+refused. GZIP expansion is bounded by the upload byte limit; ZIP/XML total expansion is at most
+32 MB and at most four times that limit. Workbooks are read with a row bound. Legacy converters
+remain compatible and are separate from the new import policy.
+
+### Operations
+
 `POST /api/v1/tools/{operation}`, JSON, where operation is `resample`, `leakage` or `score`.
 Required: `csv`, `target`, exact `positive_label`, `negative_label`, `confirm_labels: true`.
 Optional: `exclude_columns`, `seed`, `method`, `model`, `score_csv`, `include_row_data: true`.

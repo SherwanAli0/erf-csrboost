@@ -238,6 +238,7 @@
         if (!file) return;
         pending = { kind: 'file', name: String(file.name || 'upload'), size: file.size, file };
         state.data.source = { kind: 'file', name: pending.name, size: file.size };
+        state.data.importSelection={};state.data.importChoices=null;
         state.data.error = null;
         if (state.data.phase !== 'ready' && state.data.phase !== 'uploading') state.data.phase = 'selected';
         state.data.selectedNotUploaded = true;
@@ -248,10 +249,16 @@
         if (!item) return;
         pending = { kind: 'sample', name: item.name, size: null, label: item.label };
         state.data.source = { kind: 'sample', name: item.name, label: item.label, size: null };
+        state.data.importSelection={};state.data.importChoices=null;
         state.data.error = null;
         if (state.data.phase !== 'ready' && state.data.phase !== 'uploading') state.data.phase = 'selected';
         state.data.selectedNotUploaded = true;
         setErrors([]); say(`Selected the bundled sample ${item.label}. It has not been uploaded. Choose Upload and profile when you are ready.`); emit();
+      },
+      setImportSelection(kind,value) {
+        if(!['sheet','member'].includes(kind))return;
+        state.data.importSelection={...(state.data.importSelection||{}),[kind]:value};
+        setErrors([]);emit();
       },
       async uploadSelected() {
         if (!pending) { setErrors([{ field: 'file-input', message: 'Choose a file or a bundled sample first.' }]); emit(); return false; }
@@ -262,7 +269,7 @@
           let bytes, name = pending.name, text = null;
           if (pending.kind === 'sample') { text = await api.sampleText(pending.name); bytes = new TextEncoder().encode(text); }
           else { bytes = await pending.file.arrayBuffer(); if (/\.(csv|tsv|txt|data|dat)$/i.test(name) && bytes.byteLength <= 8 * 1048576) text = await readText(bytes); }
-          const created = await api.createDataset(bytes, name);
+          const created = await api.createDataset(bytes, name, state.data.importSelection);
           if (previous) { try { await api.deleteDataset(previous.id, previous.cap); } catch (_) { /* the old dataset expires on its own */ } }
           secrets.dataset = created.capability; stopPolling(); secrets.job = null;
           state.data = { phase: 'ready', source: state.data.source, datasetId: created.dataset_id, profile: created.profile, limits: created.limits, expiresAt: created.expires_at, error: null, selectedNotUploaded: false };
@@ -270,6 +277,9 @@
           say(`Profile ready: ${U.int(created.profile.rows)} rows, ${U.int(created.profile.columns)} columns. Review the parsing notes, then continue.`);
           focusOn('next-data');
         } catch (e) {
+          if(e.code==='APP_IMPORT_SELECTION_REQUIRED' && e.details && Array.isArray(e.details.choices)) {
+            state.data.importChoices={kind:e.details.selection_kind,choices:e.details.choices};
+          }
           state.data.phase = previous ? 'ready' : 'error'; state.data.error = describeError(e, 'upload');
           setErrors([{ field: 'file-input', message: state.data.error }]);
           if (!previous) state.data.datasetId = null;

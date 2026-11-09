@@ -57,7 +57,7 @@ def _legacy_refusal(exc: ValueError) -> ServiceError:
     return ServiceError(code, message, layer="legacy_input")
 
 
-def normalize_upload(raw: bytes, filename: str, limits) -> PreparedInput:
+def normalize_upload(raw: bytes, filename: str, limits, import_selection=None) -> PreparedInput:
     """Convert an upload to a ``ParsedTable`` through the legacy readers, with byte limits before and after."""
     _package()
     from rare_event_eval.tabular import ParsedTable
@@ -72,7 +72,8 @@ def normalize_upload(raw: bytes, filename: str, limits) -> PreparedInput:
     engine = legacy_engine()
     name = filename if isinstance(filename, str) else ""
     try:
-        csv_text, notes = engine.any_to_csv(raw, name)
+        from .imports import convert
+        csv_text, notes = convert(raw, name, limits, engine, import_selection)
         converted_bytes = len(csv_text.encode("utf-8", errors="replace"))
         if converted_bytes > limits.max_bytes:
             raise ServiceError(TABLE_TOO_LARGE_BYTES,
@@ -99,6 +100,7 @@ def normalize_upload(raw: bytes, filename: str, limits) -> PreparedInput:
         "malformed_rows_skipped_by_reader": skipped, "rows_rejected": 0,
         "malformed_row_policy": "legacy reader: tolerant; skipped rows are counted in read_warnings",
         "row_exclusions": [],
+        "import_selection": dict(import_selection or {}),
         "missing_tokens": ["(blank)", "?", "N/A", "n/a", "plus the default missing-value spellings of pandas"],
         "note": "Delimiter, header, number-format and missing-value handling were decided by the legacy reader "
                 "on the whole table before any split; no label or fitted statistic is used by it.",
@@ -107,10 +109,10 @@ def normalize_upload(raw: bytes, filename: str, limits) -> PreparedInput:
     return PreparedInput(table=table, columns=columns, rows=len(frame), parsing=parsing, frame=frame)
 
 
-def prepare_input(data, filename: str, limits) -> PreparedInput:
+def prepare_input(data, filename: str, limits, import_selection=None) -> PreparedInput:
     """Upload bytes go through the legacy readers; table objects go to the package unchanged."""
     if isinstance(data, (bytes, bytearray)):
-        return normalize_upload(data, filename, limits)
+        return normalize_upload(data, filename, limits, import_selection)
     from rare_event_eval.tabular import _as_columns
     columns, rows, parsing = _as_columns(data, limits)
     frame = data if hasattr(data, "columns") and hasattr(data, "to_dict") else None

@@ -82,7 +82,7 @@ test('app.js stops before it touches a dependency when one is missing, and the a
   assert.equal(ctx.FYD_BOOTED, undefined, 'it did not start');
   const without = { FYD: {} }; without.window = without;
   assert.throws(() => vm.runInNewContext(src, without), 'without the preflight guard the same page would crash');
-  assert.match(src, /window\.FYD_BOOTED = true;\n\s+boot\(\);/);
+  assert.match(src, /window\.FYD_BOOTED = true;\r?\n\s+boot\(\);/);
   assert.match(S.readWeb('preflight.js'), /Part of this page did not load\. Reload the page to try again\./);
 });
 

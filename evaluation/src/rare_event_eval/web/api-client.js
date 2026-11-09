@@ -85,8 +85,10 @@
       /* Standalone local server only: the older numeric-feature training route. */
       async trainLocal(body) { return (await json('POST', '/api/train', { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).data; },
       async staticJson(path) { return (await json('GET', path)).data; },
-      async createDataset(bytes, filename) {
-        return (await json('POST', '/api/v1/datasets', { headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': headerFileName(filename) }, body: bytes })).data;
+      async createDataset(bytes, filename, selection) {
+        const headers = { 'Content-Type': 'application/octet-stream', 'X-Filename': headerFileName(filename) };
+        if (selection && Object.keys(selection).length) headers['X-Import-Selection']=encodeURIComponent(JSON.stringify(selection));
+        return (await json('POST', '/api/v1/datasets', { headers, body: bytes })).data;
       },
       async deleteDataset(id, cap) { return (await json('DELETE', '/api/v1/datasets/' + enc(id), { bearer: cap })).data; },
       async createJob(cap, body) {

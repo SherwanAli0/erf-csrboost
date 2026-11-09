@@ -206,7 +206,8 @@
     if (!el.closest || !el.closest('#analyze-root') || env.mode !== 'hosted') return;
     const a = el.dataset && el.dataset.action;
     if (el.id === 'file-input') { if (el.files && el.files[0]) flow.selectFile(el.files[0]); return; }
-    if (a === 'pick-sample') flow.selectSample(el.value);
+    if (a === 'import-selection') flow.setImportSelection(el.dataset.kind,el.value);
+    else if (a === 'pick-sample') flow.selectSample(el.value);
     else if (a === 'set-target') flow.setTargetColumn(el.value);
     else if (el.id === 'positive-label' && el.tagName === 'SELECT') flow.setPositive(el.value);
     else if (a === 'set-ovr') flow.setField('target', 'oneVsRest', el.checked);

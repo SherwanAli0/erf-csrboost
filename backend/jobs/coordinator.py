@@ -287,7 +287,7 @@ class Coordinator:
 
     # ================================================================ datasets
 
-    def create_dataset(self, raw: bytes, filename: str) -> dict:
+    def create_dataset(self, raw: bytes, filename: str, import_selection=None) -> dict:
         """Store an upload, profile it in the light lane and return the dataset and its one-time capability."""
         if not isinstance(raw, (bytes, bytearray)):
             raise JobError("UPLOAD_INVALID", 400, "An upload must be bytes.")
@@ -316,10 +316,12 @@ class Coordinator:
             data_path.write_bytes(raw)
             request = {"data_file": str(data_path), "filename": name, "limits": self._limits_kwargs(),
                        "model_timeout_seconds": None, "job_timeout_seconds": self.config.light_timeout_seconds}
+            request['import_selection'] = import_selection
             profile = self._run_light_internal("profile", request, None)
             token, digest = new_capability()
             now = self._clock()
             dataset = _Dataset(dataset_id, digest, directory, len(raw), name, now)
+            dataset.import_selection = import_selection
             with self._lock:
                 self._require_running()
                 self._datasets[dataset_id] = dataset
@@ -396,6 +398,7 @@ class Coordinator:
                     "limits": self._limits_kwargs(), "params": params,
                     "model_timeout_seconds": self.config.model_timeout_seconds,
                     "job_timeout_seconds": self.config.job_timeout_seconds}
+            body['import_selection'] = dataset.import_selection
             try:
                 (directory / "request.json").write_text(json.dumps(body, allow_nan=False), encoding="utf-8")
             except (OSError, ValueError):

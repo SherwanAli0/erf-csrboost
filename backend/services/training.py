@@ -22,7 +22,7 @@ def train_for_app(data, *, target: str, positive_label, negative_label=None, one
                   filename: str = "", predictors=None, exclude_columns=(), id_columns=(), group_column=None,
                   time_column=None, split_mode: str = "stratified", models=None, seed: int = 42,
                   calibration: str = "none", limits=None, timeout_seconds: float = 60, missing_policy: str = "error",
-                  review_fractions=(.1, .2), costs=None, description=None, progress=None) -> dict:
+                  review_fractions=(.1, .2), costs=None, description=None, progress=None, import_selection=None) -> dict:
     """Compare package models on an upload (bytes) or table object; return the ``training-1.1`` result.
 
     ``positive_label`` is required. Give ``negative_label`` for a binary target, or ``one_vs_rest=True`` for
@@ -43,7 +43,7 @@ def train_for_app(data, *, target: str, positive_label, negative_label=None, one
             raise ServiceError(APP_INPUT_INVALID, "Give negative_label for a binary target, or one_vs_rest=True "
                                "with no negative_label.")
         limits = limits if limits is not None else TabularLimits()
-        prepared = prepare_input(data, filename, limits)
+        prepared = prepare_input(data, filename, limits, import_selection)
         spec = (LabelSpec(positive_label, mode="one_vs_rest") if one_vs_rest
                 else LabelSpec(positive_label, negative_label))
         result = train_comparison_tabular(

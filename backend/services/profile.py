@@ -83,7 +83,7 @@ def _suggestion(prepared: PreparedInput) -> tuple[dict | None, list]:
 
 
 def profile_for_app(data, filename: str = "", *, target: str | None = None, group_column: str | None = None,
-                    time_column: str | None = None, id_columns=(), limits=None) -> dict:
+                    time_column: str | None = None, id_columns=(), limits=None, import_selection=None) -> dict:
     """Profile an upload (bytes) or a table object for the application.
 
     Returns a JSON-safe record (schema ``app-profile-1.0``): parsing record, per-column schema, a target
@@ -95,7 +95,7 @@ def profile_for_app(data, filename: str = "", *, target: str | None = None, grou
     with translate_errors():
         _package()
         limits = _limits(limits)
-        prepared = prepare_input(data, filename, limits)
+        prepared = prepare_input(data, filename, limits, import_selection)
         suggestion, legacy_columns = _suggestion(prepared)
         chosen = target if target is not None else (suggestion or {}).get("column")
         if chosen is None:

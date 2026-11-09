@@ -564,4 +564,16 @@ test('describeError never loses the service message and never prints a code that
   assert.match(FLOW.describeError(err(500, 'INTERNAL_ERROR', 'Internal.')), /could not complete the request/);
 });
 
+test('multi-table upload asks for explicit choice and preserves it on retry', async () => {
+  const t=newFlow();let choice;
+  t.api.createDataset=async (bytes,name,selection)=>{
+    if(!selection || !selection.member)throw err(422,'APP_IMPORT_SELECTION_REQUIRED','Choose a table.',{details:{selection_kind:'member',choices:['one.csv','<chosen>.csv']}});
+    choice=selection;return Object.assign(clone(DS),{capability:DS_CAP});
+  };
+  t.flow.selectFile(fileOf('pack.zip'));await t.flow.uploadSelected();
+  assert.ok(V.renderData(t.flow.getState()).includes('Choose the archive member'));
+  t.flow.setImportSelection('member','<chosen>.csv');await t.flow.uploadSelected();
+  assert.deepEqual(choice,{member:'<chosen>.csv'});
+  assert.equal(t.flow.getState().data.phase,'ready');
+});
 S.run('test_web_flow.js');
