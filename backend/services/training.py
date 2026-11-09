@@ -22,14 +22,15 @@ def train_for_app(data, *, target: str, positive_label, negative_label=None, one
                   filename: str = "", predictors=None, exclude_columns=(), id_columns=(), group_column=None,
                   time_column=None, split_mode: str = "stratified", models=None, seed: int = 42,
                   calibration: str = "none", limits=None, timeout_seconds: float = 60, missing_policy: str = "error",
-                  review_fractions=(.1, .2), costs=None, description=None) -> dict:
+                  review_fractions=(.1, .2), costs=None, description=None, progress=None) -> dict:
     """Compare package models on an upload (bytes) or table object; return the ``training-1.1`` result.
 
     ``positive_label`` is required. Give ``negative_label`` for a binary target, or ``one_vs_rest=True`` for
     more than two labels. ``exclude_columns`` and ``id_columns`` must name the columns to leave out (for
     example the profile's suggested exclusions); a high-cardinality predictor raises ``TABLE_CARDINALITY_EXCEEDED``
     instead of being dropped. A model that cannot be fitted is reported in the result with a reason code; a
-    problem with the whole request raises ``ServiceError``.
+    problem with the whole request raises ``ServiceError``. ``progress`` is an optional observer callable that the
+    package calls with small event dicts (see ``train_comparison_tabular``); it never changes the result.
     """
     with translate_errors():
         _package()
@@ -51,6 +52,7 @@ def train_for_app(data, *, target: str, positive_label, negative_label=None, one
             time_column=time_column, split_mode=split_mode, seed=seed,
             models=tuple(models) if models is not None else app_default_models(), calibration=calibration,
             limits=limits, timeout_seconds=timeout_seconds, missing_policy=missing_policy,
-            review_fractions=tuple(review_fractions), costs=_costs(costs), description=description)
+            review_fractions=tuple(review_fractions), costs=_costs(costs), description=description,
+            progress=progress)
         assert_strict_json(result)
         return result

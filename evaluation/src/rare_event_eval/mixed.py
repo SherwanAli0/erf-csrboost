@@ -428,11 +428,22 @@ def _validate_options(models, split_mode, calibration, fallback_policy, seed, ti
     return fractions
 
 
+def _notify(progress, event) -> None:
+    """Call the optional progress observer. It cannot change or stop a run, so its errors are ignored."""
+    if progress is None:
+        return
+    try:
+        progress(event)
+    except Exception:  # noqa: BLE001 - an observer must never affect the training result
+        pass
+
+
 def train_comparison_tabular(table_or_csv_bytes, *, target, label_spec, predictors=None, group_column=None, time_column=None,
                              id_columns=(), split_mode="stratified", seed=42, models=DEFAULT_MODELS, calibration="none",
                              limits=TabularLimits(), timeout_seconds=60, missing_policy="error", fallback_policy="strict",
                              review_fractions=(.1, .2), costs=None, description=None, encoding=None, delimiter=None,
-                             exclude_columns=(), categorical_handling="auto", require_pandas_for_categorical=False):
+                             exclude_columns=(), categorical_handling="auto", require_pandas_for_categorical=False,
+                             progress=None):
     """Compare models on a table with numeric, categorical and missing predictors; return a ``training-1.1`` result.
 
     ``table_or_csv_bytes`` is CSV bytes, a ``ParsedTable``, a DataFrame, a dict of columns or a list of dict rows.
@@ -442,7 +453,16 @@ def train_comparison_tabular(table_or_csv_bytes, *, target, label_spec, predicto
     before any worker starts; a model that cannot be fitted is reported with ``status: "failed"`` and a
     ``reason_code``. With ``require_pandas_for_categorical`` a table with categorical predictors needs pandas
     (the optional ``app`` extra) and raises ``MixedError(PANDAS_REQUIRED)`` otherwise.
+
+    ``progress`` is an optional callable that receives small JSON-safe dicts: ``{"event": "splitting"}`` before the
+    split is built, ``{"event": "model_started", "model": id, "index": i, "total": n}`` and ``{"event":
+    "model_finished", "model": id, "index": i, "total": n, "status": "success"|"failed"|"timeout"}`` (plus
+    ``"reason_code"`` when the model did not succeed) around each worker (``index`` counts from 1), and
+    ``{"event": "reporting"}`` before the report is assembled. The callback only observes: an exception it raises is
+    ignored, and with ``progress=None`` (the default) the result is identical to a call that never mentions it.
     """
+    if progress is not None and not callable(progress):
+        raise MixedError(OPTION_INVALID, "progress must be a callable or None.")
     fractions = _validate_options(models, split_mode, calibration, fallback_policy, seed, timeout_seconds, review_fractions,
                                   costs, description, group_column, time_column)
     if not isinstance(label_spec, LabelSpec):
@@ -513,6 +533,7 @@ def train_comparison_tabular(table_or_csv_bytes, *, target, label_spec, predicto
     used_rows = len(kept)
 
     # 3. Typed arrays for the retained rows, then the common outer split.
+    _notify(progress, {"event": "splitting"})
     specs, arrays = [], {}
     for index, name in enumerate(selected):
         key = f"col_{index}"
@@ -557,9 +578,10 @@ def train_comparison_tabular(table_or_csv_bytes, *, target, label_spec, predicto
                                      "max_categorical_cardinality": limits.max_categorical_cardinality},
     }
     results = {}
-    for name in models:
+    for position, name in enumerate(models, start=1):
+        _notify(progress, {"event": "model_started", "model": name, "index": position, "total": len(models)})
         config = dict(config_base, model_name=name)
-        with tempfile.TemporaryDirectory(prefix="rare-event-worker-") as directory:
+        with tempfile.TemporaryDirectory(prefix="rare-event-worker-", ignore_cleanup_errors=True) as directory:
             directory = Path(directory)
             _write_arrays(directory / "input.npz", worker_arrays)
             (directory / "config.json").write_text(json.dumps(config, allow_nan=False), encoding="utf-8")
@@ -576,8 +598,14 @@ def train_comparison_tabular(table_or_csv_bytes, *, target, label_spec, predicto
                 row["worker_status"] = "error"
                 row["status"] = "failed"
         results[name] = row
+        finished = {"event": "model_finished", "model": name, "index": position, "total": len(models),
+                    "status": row["status"]}
+        if row["status"] != "success":
+            finished["reason_code"] = row["reason_code"]
+        _notify(progress, finished)
 
     # 5. Assemble the training-1.1 result.
+    _notify(progress, {"event": "reporting"})
     successes = [row for row in results.values() if row["status"] == "success"]
     records = [json.dumps(row["execution"]["preprocessing_record"], sort_keys=True) for row in successes]
     first_record = successes[0]["execution"]["preprocessing_record"] if successes else None

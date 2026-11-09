@@ -193,7 +193,7 @@ def bounded_model_run(X, labels, *, timeout_seconds=60, **configuration):
         arrays["groups"] = np.asarray(groups, dtype=str)
     if times is not None:
         arrays["times"] = np.asarray(times, dtype=float)
-    with tempfile.TemporaryDirectory(prefix="rare-event-worker-") as directory:
+    with tempfile.TemporaryDirectory(prefix="rare-event-worker-", ignore_cleanup_errors=True) as directory:
         directory = Path(directory)
         np.savez(directory / "input.npz", **arrays)
         (directory / "config.json").write_text(json.dumps(config, allow_nan=False), encoding="utf-8")
