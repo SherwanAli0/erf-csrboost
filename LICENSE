@@ -22,6 +22,8 @@ Scope: which files fall under which licence
 Section A (MIT) covers the source code written by the author:
   - backend/ (server, engine, models, tests, sample generator)
   - frontend/ (index.html and the JavaScript test files)
+  - evaluation/ source code and tests (its package LICENSE is also MIT)
+  - tools/, .github/workflows/, requirements-lock.txt, requirements-build.txt
   - Dockerfile, fly.toml, .dockerignore, requirements.txt
   - research/scripts/ (the research runner scripts)
   - configuration files: .gitignore, .gitattributes, research/.gitignore and

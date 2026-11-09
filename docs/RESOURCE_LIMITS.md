@@ -1,9 +1,9 @@
 # Resource limits
 
 These are the limits of the service in `backend/api.py` and `backend/jobs/`. Every value below is a provisional
-preset chosen before any measurement on a hosted machine. None of them is a verified capacity of a deployment,
-and this document does not say that the service is deployed or measured anywhere. The presets are to be replaced
-by measured ones (see "Not yet measured").
+preset chosen before measurement on a hosted machine. Local production-image verification at one CPU and
+1 GB passed 44 checks with 13 memory samples peaking at 335.6 MiB for its small fictional tables. This is
+not a maximum-size-input benchmark or a measurement of the Fly host. See `RELEASE-VERIFICATION.md`.
 
 ## Provisional presets
 
@@ -29,10 +29,13 @@ by measured ones (see "Not yet measured").
 | Result size, `/api/v1` jobs and profiles | 8 MB | `FYD_MAX_RESULT_BYTES` | the job fails with `RESULT_TOO_LARGE` |
 | Result size, the four legacy commands | 32 MB | `FYD_MAX_LEGACY_RESULT_BYTES` | the call fails with `RESULT_TOO_LARGE`; a legacy route answers 400 in its shape |
 | Memory of one worker process tree | 700 MB | `FYD_CHILD_MEMORY_MB` (0 turns it off) | the tree is killed, the job fails with `MEMORY_LIMIT_EXCEEDED` |
+| Reproducibility bundle, built in the web process | 40 MB uncompressed, 20 MB compressed (fixed) | not configurable | 500 `EXPORT_TOO_LARGE`; the report it holds is already limited to `FYD_MAX_RESULT_BYTES` |
+| One workbench file served from the web folder | 8 MB (fixed) | not configurable | the file is not on the allowlist and answers 404 |
 | Job request JSON | 128 KiB body, 64 KiB of parameters | none (fixed in code) | 413 or 422 |
 | Legacy request body | 45 MB | none (fixed in code) | 400 in the legacy shape |
 | Concurrent connections | 64 | none (fixed in `main()`) | Uvicorn answers 503 |
 | Keep-alive | 5 s | none (fixed in `main()`) | the connection is closed |
+| Integrated data tools | 2 MB per CSV, 2,000 rows, 50 predictors, 40 categories and 200 expanded features | fixed | the worker refuses invalid input; the overall JSON body is capped at 4 MB |
 
 Also fixed in `main()`: one worker, access log off.
 
@@ -44,7 +47,8 @@ Also fixed in `main()`: one worker, access log off.
   stops the service at start with an error.
 - Other variables: `PORT` (default 7860), `FYD_TEMP_ROOT` (the private storage folder, default
   `<system temp>/fyd-jobs`; the service deletes everything in it at start and refuses a non-empty folder that
-  it did not create), `FYD_RELEASE_ID` (shown by `/api/v1/version`), `FYD_TRUST_X_FORWARDED_FOR=1`,
+  it did not create), `FYD_RELEASE_ID` (shown by `/api/v1/version` and written into reports and bundles), `FYD_WEB_DIR` (the folder of
+  the workbench files; default `evaluation/src/rare_event_eval/web`), `FYD_TRUST_X_FORWARDED_FOR=1`,
   `FYD_TRUST_FLY_CLIENT_IP=1` (trust the `Fly-Client-IP` header outside Fly; on Fly the variable `FLY_APP_NAME`,
   which Fly sets, already does that, and without either the header is ignored), `FYD_USAGE_DB`, `STATS_KEY`,
   and for tests only `FYD_ALLOW_TEST_COMMANDS=1`.

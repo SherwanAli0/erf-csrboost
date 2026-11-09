@@ -1,7 +1,7 @@
 # HTTP API
 
-This describes the service in `backend/api.py`: the `/api/v1` interface, the health routes and the legacy
-routes that the current web page uses. Run it from the repository root with `python backend/api.py`. The `PORT`
+This describes the service in `backend/api.py`: the pages (the workbench at `/` and the old page at `/classic`),
+the `/api/v1` interface, the health routes and the legacy routes that the old page uses. Run it from the repository root with `python backend/api.py`. The `PORT`
 variable sets the port (default 7860). The service listens on every network interface. Nothing in this file
 says that a copy of it is deployed anywhere.
 
@@ -16,7 +16,7 @@ Service). Limits are provisional and every one can be changed by an environment 
   ASCII only. The characters `<`, `>` and `&` are written as the six-character JSON escapes `\u003c`, `\u003e`
   and `\u0026`, which a JSON parser reads back as the same text.
 - Every response has an `X-Request-ID` header, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`
-  and `X-Frame-Options: DENY`. Every response except the two page routes (`/` and `/index.html`) also sends
+  and `X-Frame-Options: DENY`. Every response except the old page (`/classic`, which keeps the headers it always had) also sends
   `Referrer-Policy: no-referrer`. There is no CORS header on any route.
 - A request with an `Origin` header whose host differs from the `Host` header is refused with 403
   `ORIGIN_NOT_ALLOWED` when its method is POST, PUT, PATCH or DELETE. A request with no `Origin` header (curl, a
@@ -79,12 +79,38 @@ path, no capability and no row of the uploaded table. A response with status 429
 | 429 | `DATASET_BUSY` | The dataset already has a job that has not finished |
 | 429 | `DATASET_LIMIT_REACHED` | Too many datasets are stored |
 | 500 | `INTERNAL_ERROR`, `JOB_CRASHED`, `JOB_INTERNAL_ERROR` | A fault in the service or a worker; only the class of the fault is shown |
+| 500 | `EXPORT_FAILED`, `EXPORT_TOO_LARGE` | The report could not be rendered, or the bundle would be larger than its bound |
 | 503 | `STORAGE_FULL`, `SERVICE_UNAVAILABLE`, `LIGHT_TIMEOUT`, `JOB_TIMEOUT` | The service cannot take the work now |
 
 Whether a model could be fitted is not an HTTP error. A job that was accepted ends in a state, and the
 failure reason is in the job status and in the report.
 
 ## Routes
+
+### Pages
+
+| Route | Behaviour |
+|---|---|
+| `GET` and `HEAD` `/`, `/index.html` | The workbench: `index.html` of the folder `evaluation/src/rare_event_eval/web` (resolved from the repository root, or the folder named by `FYD_WEB_DIR`). `Cache-Control: no-store`. A `GET` writes a usage event of kind `visit`, exactly as the old page did; `HEAD` does not. |
+| `GET` and `HEAD` `/<file>` | Every other regular file directly inside that folder, at its own root path (`/app.js`, `/style.css`, `/recorded-example.json`, ...). |
+| `GET` and `HEAD` `/classic` | The old single page, the bytes of `frontend/index.html`, with the visit logging and headers `/` had before the workbench. Integrated replacements for resampling, Leakage Lab and scoring are in the new interface; the legacy receipt and extra methods remain here. |
+
+How the files are chosen. The list is built once at startup from the folder, and the URL can only pick a name from
+that list: no request text is ever joined into a path. A file is on the list when it is a regular file (not a link),
+its name is plain (letters, digits, `.`, `-`, `_`, not starting with a dot, at most 100 characters), its extension is in
+a fixed table and it is at most 8 MB. The table: `.html` `text/html; charset=utf-8`, `.css` `text/css; charset=utf-8`,
+`.js` `text/javascript; charset=utf-8`, `.json` `application/json`, `.png` `image/png`, `.svg` `image/svg+xml`, `.ico`
+`image/x-icon`, `.txt` `text/plain; charset=utf-8`. Everything else answers the same `404 not found` text as any unknown
+path: hidden files, sub-folders and the files in them, other extensions, other letter cases, a trailing slash, encoded
+dots and slashes, `..`. A file added after startup is not served; a file removed after startup is a 404.
+
+Headers. Pages are `no-store`, other files are `public, max-age=300`, all carry `X-Content-Type-Options: nosniff`.
+Any page other than `index.html` (for example the recorded example report) and every SVG also carries
+`Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action
+'none'; sandbox`. `index.html` (`/` and `/index.html`, GET and HEAD) carries `Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`: the workbench uses no inline script, style attribute or event handler, its downloads are `blob:` anchors, which these directives do not govern, and its icon is a `data:` URL. Other assets and `/classic` carry no policy (the old page uses inline script). `HEAD` returns the headers of `GET`
+(including `Content-Length`) and no body. If the folder has no `index.html`, `/` and `/index.html` answer 503 with a
+short text and the other files, `/classic` and `/api/v1` keep working. The page routes need no capability and take no
+query parameter.
 
 ### Health and information
 
@@ -222,9 +248,76 @@ the previous process are unknown and every request for them is a 404.
 |---|---|---|---|
 | `report_json` | `application/json` | `fyd-report.json` | the same report as `/result` |
 | `report_html` | `text/html; charset=utf-8` | `fyd-report.html` | the package's standalone report page |
-| `config_json` | `application/json` | `fyd-config.json` | the settings of the run, the limits and the input hash |
+| `config_json` | `application/json` | `fyd-config.json` | the settings of the run (the request, every default written out), the limits and the input hash |
+| `repro_bundle` | `application/zip` | `fyd-repro-bundle.zip` | a zip with the config, the report as JSON and HTML, the versions, a README and the command that repeats the run |
 
-All exports are sent with `Content-Disposition: attachment`, `Cache-Control: no-store` and `nosniff`.
+All exports are sent with `Content-Disposition: attachment`, `Cache-Control: no-store` and `nosniff`. None of them
+holds a row of the uploaded table, a prediction or score per row, the row indexes of the split (the report has only
+counts and a hash of each index list) or a fitted model.
+
+Row-level exports are not part of this release. Row mappings, split indexes and per-row scores are a deliberate later
+item: if they are added they will be separate kinds, behind an explicit user action, with their privacy implications
+explained, and they will not appear in the default aggregate exports. There is no export kind for them now.
+
+**Provenance label.** The report that `/result` and every export return carries two fields added by the service, on
+top of the package's `training-1.1` fields: `"provenance": "fresh app run"` and an `app` block (`app_version`,
+`release_id`, a note). The four labels used across the project are `fictional fixture`, `recorded app run`,
+`fresh app run` and `historical research record`. Existing `training-1.1` consumers ignore the added fields. The
+HTML export prints the label and what it means in its header. A result produced by this app is never presented as a
+historical ERF research result.
+
+**`config_json`.** `schema` stays `fyd-job-config-1.0`; the fields `provenance`, `effective` and `app` were added.
+`request` is the validated request as sent. `effective` is the same request with every default written out (models,
+split mode, seed, calibration, missing-target policy, review fractions, costs, excluded and identifier columns,
+group and time columns, the per-model time limit and the table limits the job ran with). The defaults are read from
+`services.train_for_app` itself, so they cannot drift from what the job used.
+
+**`repro_bundle`.** A zip built in memory, at most 40 MB uncompressed and 20 MB compressed (a larger one is a 500
+`EXPORT_TOO_LARGE`). The member order is fixed, all timestamps are 1980-01-01 00:00:00, attributes are fixed and the
+compression level is fixed, so the same job gives the same bytes on one Python and zlib build.
+
+| File | Content |
+|---|---|
+| `config.json` | the `config_json` document plus `bundle_schema: fyd-repro-bundle-1.0` |
+| `report.json` | byte for byte the `report_json` export |
+| `report.html` | byte for byte the `report_html` export |
+| `versions.json` | app version, source release id (`FYD_RELEASE_ID`, else `unknown`), package version, report and config schema ids, Python, numpy, scikit-learn, imbalanced-learn and pandas versions, and the recipe id, version, scope and family of every model |
+| `README.txt` | what the bundle is, what it does not contain (the table, any row, any per-row prediction, the row indexes, any model), a privacy note, and that the result is not a historical ERF result |
+| `replay.txt` | the exact command, the notes below and the same arguments as a JSON list |
+
+**The replay command.** `replay.txt` holds one `python -m rare_event_eval train ...` command, written for a POSIX shell
+and for Windows PowerShell (the PowerShell form is left out when a value holds a double quote, which Windows PowerShell
+5.1 cannot pass safely; the JSON argument list is always exact). It uses only flags the command line has. Every value
+option is written as `--name=value`, so a label that begins with a dash cannot be read as an option. It sets the models,
+the split mode, the group or time column, the seed, the calibration, the positive and negative label or
+`--one-vs-rest`, the target, the excluded and identifier columns, the review fractions, the error and review costs, the
+missing-target policy, the per-model time limit and `--max-expanded-features` (which also makes the command line use the
+mixed-type adapter, the code path the hosted job runs). The data file is named `YOUR_INPUT_FILE.csv`: the bundle does
+not hold the data, and `replay.txt` gives the SHA-256 and byte count of the file to use.
+
+The command uses the `python -m rare_event_eval train` flags as they exist in the package command line (`cli.py`); that is verified, not assumed: the test parses the command with the package's own argument parser and then runs it.
+
+This is tested. `tests/test_exports.py` runs a job, reads the command from the bundle, runs it on the original file and
+compares the result with the hosted report: metrics, thresholds, review-budget results, calibration bins, class counts,
+split counts and index hashes, label mapping, predictors, preprocessing records and model records are equal. Two
+scenarios are covered: a plain job with sigmoid calibration, costs and an excluded column, and a job with hostile
+names, `one_vs_rest` labels, a group split, an identifier column and the `drop_reported` missing-target policy. The
+fields that legitimately differ are exactly these, and the test fails on any other difference:
+
+- `created_utc` and the timings and memory (`fit_seconds`, `fit_and_evaluation_seconds`, `worker_wall_seconds`,
+  `peak_process_rss_bytes`);
+- the whole `input_parsing` record: the app reads uploads with its own table reader and the command line uses the
+  package reader (for a plain UTF-8 comma-separated file with a header both give the same table);
+- the table limits echoed back (`max_rows`, `max_bytes`): the command line has no option for them and uses the package
+  defaults (20,000 rows, 5,000,000 bytes), so a file above 5,000,000 bytes is refused by the command line;
+- the `provenance` and `app` fields, which the app adds and the command line does not.
+
+What the command cannot express is stated in `replay.txt` for the run it describes, not hidden: an upload the app
+converted before reading (for example a spreadsheet), a reader warning (the app's reader drops a first column that is
+only row numbers and skips malformed rows, the command line keeps the column and rejects the row), a file over the byte
+limit of the command line, models that failed or timed out (a timeout depends on the speed of the machine), and a split
+mode or calibration the command line does not offer. A value with a control character cannot be written on one line, so
+only the JSON argument list is given.
 
 How user text is treated. Labels and column names come from the uploaded table and can be hostile. In
 `report_html` the package escapes every value it prints (a label `<script>alert(1)</script>` is printed as
@@ -235,7 +328,7 @@ looks like a spreadsheet formula, such as `=cmd|' /C calc'!A0`, is printed as te
 the bytes on the wire never contain `<`, `>` or `&`: they are written as the escapes `\u003c`, `\u003e` and
 `\u0026`, six characters each. No export
 is a CSV file, so there is no spreadsheet-formula path; a client that writes labels into a CSV or a
-spreadsheet itself has to neutralise a leading `=`, `+`, `-` or `@`, which this service does not do for it.
+spreadsheet itself has to neutralise a leading `=`, `+`, `-` or `@`, which this service does not do for it. Bidirectional control characters (U+202A to U+202E, U+2066 to U+2069, U+200E, U+200F, U+061C) in labels, column names and other user text are printed in the HTML report as visible markers such as `<U+202E>` (escaped, shown as text), because they would otherwise reorder the visible text around them; the JSON exports keep the real characters. The HTML report also names the real source of the dataset description: a recorded example says the table was generated by a seeded script, a fresh run keeps "User-supplied".
 
 ## Curl walk-through
 
@@ -272,18 +365,19 @@ A script that polls should wait at least a second between calls, stop on any sta
 
 ## Legacy routes
 
-These keep the request and response shapes of `backend/server.py` so the current page keeps working. They carry
+These keep the request and response shapes of `backend/server.py` so the old page (`/classic`) keeps working. The
+workbench uses `/api/v1` and, for the bundled samples, `/api/samples` and `/api/sample`. They carry
 no capability and are not part of the versioned interface.
 
 | Route | Behaviour |
 |---|---|
-| `GET /`, `GET /index.html` | the page; a usage event of kind `visit` is written for GET (not HEAD) |
+| `GET /classic` | the old page (`frontend/index.html`, the page `/` served before the workbench); a usage event of kind `visit` is written for GET (not HEAD) |
 | `GET /api/samples`, `GET /api/sample?name=` | sample list and the raw CSV (`text/csv`) |
 | `POST /api/profile`, `POST /api/convert` | JSON body as before; run in the light lane (one at a time, two waiting, then 429) |
 | `POST /api/analyze`, `POST /api/score` | JSON body as before; run in the heavy queue (shared with `/api/v1` jobs); the usage events `analyze` and `score` are written before the run |
 | `GET /stats`, `GET /stats/<key>`, `GET /whoami/<key>` | owner pages |
 
-- The `HEAD` method is answered like GET for the page and the owner pages.
+- The `HEAD` method is answered like GET for the pages and the owner pages.
 - A cross-origin POST to one of the four legacy POST routes is refused with 403 in the legacy error shape.
 - Errors are `400 {"ok": false, "error": "<text>"}`, as before, with the engine's own message. An unknown path
   or an unsupported method is `404` with the text `not found`. A busy service is `429` in the same shape with
@@ -347,3 +441,32 @@ no capability and are not part of the versioned interface.
 - The report is the package's report for the data that was uploaded. The service does not check the data for
   leakage, time order or label quality beyond what the profile and the package report.
 - The HTML export is rendered in the web process by the package renderer, not in a worker.
+
+## Integrated data tools
+
+`POST /api/v1/tools/{operation}`, JSON, where operation is `resample`, `leakage` or `score`.
+Required: `csv`, `target`, exact `positive_label`, `negative_label`, `confirm_labels: true`.
+Optional: `exclude_columns`, `seed`, `method`, `model`, `score_csv`, `include_row_data: true`.
+UTF-8 CSV only; 2 MB per table, 2,000 rows, 50 predictors, 40 categories per predictor and 200 expanded
+features. The aggregate request body is also bounded (at most 4 MB). Same-origin rules apply.
+
+The synchronous caller response uses the bounded heavy lane and disconnect cancellation. It returns
+aggregate settings/counts/warnings and an empty `downloads` mapping by default. Row files appear only
+after explicit `include_row_data: true`. There is no public result id or download URL. A caller supplies
+its own inputs; it cannot read an existing dataset or another caller's job through this endpoint.
+Validation errors return a typed envelope; worker input failures currently use the coordinator's legacy
+error translation. Unknown fields are ignored, not forwarded to the worker.
+
+Resampling supports `none`, `random_over`, `random_under`, `smote` and `clustered_smote`. Only training
+rows fit preprocessing/resampling; validation/test exports retain original cells. Exports include
+partitions and source-pattern candidates, marking synthetic rows explicitly. Formula strings are
+neutralized without changing numeric analytical values. Training values may be imputed.
+
+Scoring supports `logistic`, `rf_raw` and `erf`, refits on all labelled rows and flags at 0.5. It does not
+claim held-out performance or calibration. Existing input column names are preserved using collision-safe
+score/flag names. `score_csv` must contain all selected predictors.
+
+The Leakage Lab accepts SMOTE or clustered SMOTE. The honest sampler sees training rows only; the
+deliberately incorrect sampler sees all rows to generate synthetic training additions. Both models are
+tested on identical original test rows. Different training sizes and synthetic rows are confounders;
+either arm can perform better. It is a teaching intervention, not a pipeline leakage detector.

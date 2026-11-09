@@ -1,12 +1,13 @@
-# Recipe differences: live application versus the evaluation package
+# Recipe differences: legacy application versus the evaluation package
 
-This page lists where the live FixYourDataset application (`backend/engine.py` and `backend/models/`) and the
+This page lists where the legacy FixYourDataset application (`backend/engine.py` and `backend/models/`) and the
 evaluation package (`evaluation/`, import name `rare_event_eval`) do different things for the same named method.
 It was written after reading both code bases. It does not claim that either side reproduces the research
 tables, and it does not rank the recipes. The mapping of every legacy name to a package recipe lives in
 `backend/services/recipes.py` and is checked by `tests/test_app_service.py`.
 
-The application is unchanged at this stage. The package side describes what `backend/services/` calls.
+The legacy engine is unchanged. The maintained workbench uses the package side through `backend/services/`;
+`/classic` uses the legacy side. Deployment status is recorded in `RELEASE-VERIFICATION.md`.
 
 ## 1. Evaluation protocol
 
@@ -62,7 +63,7 @@ cluster, and averaged probabilities. There is no boosting in ERF on either side.
 - Parallelism: `n_jobs=-1` in the application, `n_jobs=1` in the package workers.
 - Training rows: capped at 4,000 in the application, not capped in the package.
 
-A recipe with fewer bags or trees would need its own recipe identifier and displayed capacity. None exists yet.
+The registry separately names the one-bag ablation. It is a capacity ablation, not the standard ERF recipe.
 
 ## 5. CSRBoost implementation differences
 

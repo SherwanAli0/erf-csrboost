@@ -1,0 +1,90 @@
+name: Checks
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, feat/fyd-flagship-upgrade]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Install locked dependencies and package
+        run: |
+          python -m pip install -r requirements-lock.txt -r requirements-build.txt
+          python -m pip install --no-build-isolation --no-deps -e ./evaluation
+          python -m pip check
+      - name: Package checks
+        working-directory: evaluation
+        run: python -B -m unittest discover -s tests
+      - name: Application checks
+        run: python -B -m unittest discover -s tests
+      - name: Browser numerical parity
+        run: node evaluation/tests/test_browser_parity.js
+      - name: Legacy regression checks
+        run: |
+          python -B backend/test_head.py
+          python -B backend/test_rare_split_guard.py
+          python -B backend/test_sample_cards.py
+          python -B backend/test_small_fixes.py
+          python -B backend/test_torture.py
+          node frontend/test_receipt.js
+          node frontend/test_verdict.js
+      - name: Build distributions
+        run: python -m build --no-isolation --outdir dist ./evaluation
+      - name: Check installed wheel in a clean environment
+        shell: python
+        run: |
+          import pathlib, subprocess, sys, venv
+          root = pathlib.Path.cwd()
+          env = root / '.wheel-check'
+          venv.EnvBuilder(with_pip=True).create(env)
+          py = env / ('Scripts/python.exe' if sys.platform == 'win32' else 'bin/python')
+          def call(*args): subprocess.run([str(py), *map(str,args)],check=True)
+          call('-m','pip','install','-r',root/'requirements-lock.txt')
+          call('-m','pip','install','--no-deps',next((root/'dist').glob('*.whl')))
+          subprocess.run([str(py),'-B','-m','rare_event_eval','--help'],cwd=env,check=True)
+          subprocess.run([str(py),'-B','-m','rare_event_eval','evaluate',str(root/'evaluation/examples/fictional_predictions.csv'),'--label-column','outcome','--score-column','baseline','--score-column','candidate','--positive-label','event','--negative-label','clear','--score-kind','probability','--threshold','0.5','--review-budget','2','--output',str(env/'report.json'),'--html',str(env/'report.html')],cwd=env,check=True)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.11'
+        with:
+          name: package-distributions
+          path: dist/*
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+      - name: Build exact production image
+        run: docker build -t fyd-check .
+      - name: Exercise constrained container
+        run: python -B tools/container_smoke.py --image fyd-check

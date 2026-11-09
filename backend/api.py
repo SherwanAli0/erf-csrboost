@@ -61,7 +61,7 @@ INDEX = ROOT / "frontend" / "index.html"     # the legacy page, served at /class
 SAMPLES = ROOT / "samples"
 DEFAULT_WEB_DIR = ROOT / "evaluation" / "src" / "rare_event_eval" / "web"
 
-APP_VERSION = "2.0.0-dev"
+APP_VERSION = "2.0.0"
 REPORT_SCHEMAS = {"training": "training-1.1", "profile": "app-profile-1.0", "job_config": "fyd-job-config-1.0"}
 
 # Same metadata as backend/server.py (a test compares the two so they cannot drift apart).

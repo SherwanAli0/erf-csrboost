@@ -1,6 +1,10 @@
 # Implementation map: research runner and web application
 
-ERF-CSRBoost exists here in two implementations.
+This is the historical comparison of the research runner and the legacy application engine.
+The maintained workbench now calls `rare_event_eval` through `backend/api.py`; its versioned
+recipes, preprocessing and evaluation are documented in [RECIPE-DIFFERENCES.md](RECIPE-DIFFERENCES.md).
+The legacy engine remains available at `/classic`. Neither application procedure reproduces
+the research tables. The implementation details below describe the preserved legacy pair.
 
 - The **research runner**, `research/scripts/comparison_rf_csrboost_erf.py`. It produced the rows
   of the stored June four-way record for ESR, DCCC and CB, and an earlier version of it produced the

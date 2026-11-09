@@ -400,4 +400,3 @@ def build_repro_bundle(report: dict, settings: dict, config_body: dict, report_h
     if len(data) > MAX_BUNDLE_BYTES:
         raise ExportError("EXPORT_TOO_LARGE", "The bundle would be larger than the service allows.")
     return data
-

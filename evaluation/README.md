@@ -143,8 +143,8 @@ files are written next to the script and as `recorded-example.json` and `.html` 
 
 Node.js (18 or newer, no packages) enables the browser/Python metric parity check and the browser module tests
 (`tests/test_web_*.js`, run through `tests/test_web_node.py`). Without Node those tests are skipped. See [scope](docs/scope-and-decisions.md). No external user trial
-has occurred. The `examples/output` reports were recorded with version 0.2.0 and
-have not been regenerated.
+has occurred. The fictional output reports retain their original 0.2.0 record;
+the separately labelled recorded app example was generated with package 0.3.0.
 
 Code is under the [MIT license](LICENSE). Third-party methods and dependencies
 retain their attribution and licenses. Do not bulk-publish the private workspace.

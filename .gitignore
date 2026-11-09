@@ -6,6 +6,10 @@ data_local/
 # local environments
 .venv/
 venv/
+dist/
+build/
+.wheel-check/
+*.egg-info/
 
 # research runner: local outputs and datasets a reader downloads (third-party, not redistributed)
 research/outputs/

@@ -12,7 +12,7 @@
           "numpy": "2.2.6",
           "scikit_learn": "1.8.0"
         },
-        "created_utc": "2026-11-09T21:28:27.312010+00:00",
+        "created_utc": "2026-11-09T22:26:47.315407+00:00",
         "task": {
           "kind": "binary_classification",
           "positive_label": "default",
@@ -424,9 +424,9 @@
             "max_categorical_cardinality": 50
           }
         },
-        "fit_seconds": 0.05137829999875976,
-        "fit_and_evaluation_seconds": 0.0631915999983903,
-        "peak_process_rss_bytes": 150876160,
+        "fit_seconds": 0.07118030000128783,
+        "fit_and_evaluation_seconds": 0.08814050000000861,
+        "peak_process_rss_bytes": 150700032,
         "memory_scope": "worker process peak including interpreter and libraries",
         "threads": 1,
         "warnings": [],
@@ -520,7 +520,7 @@
           "interpretation": "Feature-pattern overlap is a diagnostic, not automatic proof of leakage. Grouping changes the generalization question."
         }
       },
-      "worker_wall_seconds": 2.490604099999473,
+      "worker_wall_seconds": 3.6351728000008734,
       "model_record": {
         "id": "logistic-mixed",
         "display_name": "Logistic regression, mixed-type variant",
@@ -561,7 +561,7 @@
           "numpy": "2.2.6",
           "scikit_learn": "1.8.0"
         },
-        "created_utc": "2026-11-09T21:28:30.165446+00:00",
+        "created_utc": "2026-11-09T22:26:50.863138+00:00",
         "task": {
           "kind": "binary_classification",
           "positive_label": "default",
@@ -986,9 +986,9 @@
             "max_categorical_cardinality": 50
           }
         },
-        "fit_seconds": 0.18853980000130832,
-        "fit_and_evaluation_seconds": 0.2183005000006233,
-        "peak_process_rss_bytes": 151416832,
+        "fit_seconds": 0.22769229999903473,
+        "fit_and_evaluation_seconds": 0.29215779999867664,
+        "peak_process_rss_bytes": 151719936,
         "memory_scope": "worker process peak including interpreter and libraries",
         "threads": 1,
         "warnings": [],
@@ -1087,7 +1087,7 @@
           "interpretation": "Feature-pattern overlap is a diagnostic, not automatic proof of leakage. Grouping changes the generalization question."
         }
       },
-      "worker_wall_seconds": 2.866608399999677,
+      "worker_wall_seconds": 3.528181100002257,
       "model_record": {
         "id": "rf_weighted-mixed",
         "display_name": "Random forest, class-weighted, mixed-type variant",
@@ -1129,7 +1129,7 @@
           "numpy": "2.2.6",
           "scikit_learn": "1.8.0"
         },
-        "created_utc": "2026-11-09T21:28:33.101809+00:00",
+        "created_utc": "2026-11-09T22:26:54.556656+00:00",
         "task": {
           "kind": "binary_classification",
           "positive_label": "default",
@@ -1576,9 +1576,9 @@
             "max_categorical_cardinality": 50
           }
         },
-        "fit_seconds": 0.20166700000117999,
-        "fit_and_evaluation_seconds": 0.22538369999892893,
-        "peak_process_rss_bytes": 159481856,
+        "fit_seconds": 0.21658039999965695,
+        "fit_and_evaluation_seconds": 0.2412867000020924,
+        "peak_process_rss_bytes": 159277056,
         "memory_scope": "worker process peak including interpreter and libraries",
         "threads": 1,
         "warnings": [],
@@ -1679,7 +1679,7 @@
           "interpretation": "Feature-pattern overlap is a diagnostic, not automatic proof of leakage. Grouping changes the generalization question."
         }
       },
-      "worker_wall_seconds": 2.8974073999997927,
+      "worker_wall_seconds": 3.6249556000002485,
       "model_record": {
         "id": "balanced_rf-mixed",
         "display_name": "Balanced random forest, mixed-type variant",
@@ -1723,7 +1723,7 @@
           "numpy": "2.2.6",
           "scikit_learn": "1.8.0"
         },
-        "created_utc": "2026-11-09T21:28:35.758546+00:00",
+        "created_utc": "2026-11-09T22:26:57.864728+00:00",
         "task": {
           "kind": "binary_classification",
           "positive_label": "default",
@@ -2135,9 +2135,9 @@
             "max_categorical_cardinality": 50
           }
         },
-        "fit_seconds": 0.17115820000253734,
-        "fit_and_evaluation_seconds": 0.19210210000164807,
-        "peak_process_rss_bytes": 150765568,
+        "fit_seconds": 0.22610180000265245,
+        "fit_and_evaluation_seconds": 0.2535091999998258,
+        "peak_process_rss_bytes": 150867968,
         "memory_scope": "worker process peak including interpreter and libraries",
         "threads": 1,
         "warnings": [],
@@ -2238,7 +2238,7 @@
           "interpretation": "Feature-pattern overlap is a diagnostic, not automatic proof of leakage. Grouping changes the generalization question."
         }
       },
-      "worker_wall_seconds": 2.6318076999996265,
+      "worker_wall_seconds": 3.302009700000781,
       "model_record": {
         "id": "hist_gradient_boosting-mixed",
         "display_name": "Histogram gradient boosting, mixed-type variant",
@@ -2280,7 +2280,7 @@
           "numpy": "2.2.6",
           "scikit_learn": "1.8.0"
         },
-        "created_utc": "2026-11-09T21:28:41.118518+00:00",
+        "created_utc": "2026-11-09T22:27:04.101200+00:00",
         "task": {
           "kind": "binary_classification",
           "positive_label": "default",
@@ -2692,9 +2692,9 @@
             "max_categorical_cardinality": 50
           }
         },
-        "fit_seconds": 2.5072548999996798,
-        "fit_and_evaluation_seconds": 2.717225899999903,
-        "peak_process_rss_bytes": 181723136,
+        "fit_seconds": 2.7955321999979788,
+        "fit_and_evaluation_seconds": 3.0048915000006673,
+        "peak_process_rss_bytes": 181497856,
         "memory_scope": "worker process peak including interpreter and libraries",
         "threads": 1,
         "warnings": [],
@@ -3255,7 +3255,7 @@
           "interpretation": "Feature-pattern overlap is a diagnostic, not automatic proof of leakage. Grouping changes the generalization question."
         }
       },
-      "worker_wall_seconds": 5.401966000001266,
+      "worker_wall_seconds": 6.246277799997188,
       "model_record": {
         "id": "erf-mixed",
         "display_name": "ERF (20 bags x 50 trees), mixed-type variant",
@@ -3964,7 +3964,7 @@
   "input_sha256": "5e1dd98a450628b71e88d3d321801bb37aed1f9cfb41c03e2c3dbb3a3944c9a0",
   "provenance": "recorded app run",
   "app": {
-    "app_version": "2.0.0-dev",
+    "app_version": "2.0.0",
     "release_id": "unknown",
     "note": "Application that produced this report. The report itself comes from the rare-event-eval package."
   },

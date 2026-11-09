@@ -6,10 +6,11 @@ splits, models, metrics and reports; the application only calls it.
 
 ## Service
 
-`backend/api.py` is a FastAPI application that runs under one Uvicorn worker. It replaces nothing yet: the
-standard-library server `backend/server.py` is unchanged, and the new service answers the same routes (the
-legacy compatibility routes) plus the `/api/v1` interface. Routes, errors and examples are in `API.md`; limits
-are in `RESOURCE_LIMITS.md`. The Dockerfile and the Fly configuration still start `backend/server.py`.
+`backend/api.py` is the production entry point: FastAPI under one Uvicorn worker. The Docker image
+installs the shared package wheel and serves its workbench assets. `backend/server.py` remains a preserved
+legacy entry point; `/classic` provides its old interface through bounded compatibility routes.
+Versioned jobs, integrated tools, routes and errors are in `API.md`; capacity controls and measured scope
+are in `RESOURCE_LIMITS.md`. Deployment status and receipts belong in `RELEASE-VERIFICATION.md`.
 
 ### Parts
 
@@ -25,7 +26,9 @@ backend/
     tokens.py       capabilities (random, digest only, constant-time check)
     states.py       job states and the legal transitions
     config.py       JobConfig with provisional defaults and FYD_* overrides
-  services/     adapter around the evaluation package (profile, train, report HTML)
+  services/     adapter around the evaluation package (profile, train, report HTML) and the exports
+    toolbox.py      explicit-label resampling, Leakage Lab and scoring; optional private row exports
+    exports.py      provenance label, effective settings, the reproducibility bundle and its replay command
   engine.py     the legacy analysis engine, used only inside worker processes by the service
 ```
 
@@ -72,6 +75,24 @@ coordinator answers a wrong, missing or foreign capability on an existing id exa
 bodies and log lines carry no capability, path, traceback or table row; the middleware logs only the class name of
 an unexpected exception. The owner statistics key of the legacy pages is never logged and is compared in constant
 time. Uvicorn's access log is off because it would record URLs.
+
+### Pages and exports
+
+- The workbench is the maintained interface. Its files live in `evaluation/src/rare_event_eval/web` and are the same
+  files the standalone local server (`python -m rare_event_eval serve`) serves. `backend/api.py` serves `index.html`
+  at `/` and `/index.html` and every other plain file of that folder at its own root path, from an allowlist built
+  once at startup (no request text is joined into a path). The page looks for the hosted API with
+  `GET /api/v1/version` and shows the "Analyze a dataset" flow when it answers. The old single page
+  (`frontend/index.html`) is served unchanged at `/classic` for legacy recipes and receipts; the new interface
+  integrates its own explicit-label data tools. The folder can be changed with
+  `FYD_WEB_DIR`, which the tests use. A deployment image has to contain that folder: without an `index.html` the service
+  answers 503 at `/` instead of falling back silently.
+- Exports are built by the coordinator from the stored report and the validated request, in the web process, by
+  `services/exports.py` and the package's renderer. The report is annotated with a provenance label (`fresh app run`)
+  and an app block when it is read, so `/result` and every export agree. The reproducibility bundle is a pure function of
+  the report, the request, the limits and the app version: fixed member order, timestamps and compression level, bounded
+  in size, no row of the upload. Its replay command is built from the effective settings and checked by a test that runs
+  it with the package command line (see `API.md`).
 
 ### Lifetimes and restarts
 
