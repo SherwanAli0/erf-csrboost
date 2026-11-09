@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Evaluate rare-event models, inspect review budgets and understand the limits of the evidence.">
+  <title>FixYourDataset | Evaluation workbench</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="metrics.js"></script><script defer src="demo-data.js"></script><script defer src="app.js"></script>
+</head>
+<body>
+<header class="site-header"><a class="brand" href="#"><span class="brand-icon" aria-hidden="true">F</span>FixYourDataset<span class="brand-detail">Evaluation workbench</span></a><span id="runtime-badge" class="badge">Browser mode</span></header>
+<main>
+  <div class="intro"><div><p class="eyebrow">Sherwan Ali / Applied machine learning</p><h1>Make a decision<br>you can defend.</h1><p class="lead">Compare predictions, inspect the review workload and keep the limits of the evidence in view.</p></div><aside class="intro-note"><span class="note-number">01</span><p>Choose the event.<br>State the budget.<br>Inspect the evidence.</p></aside></div>
+  <nav class="tabs" role="tablist" aria-label="Workbench sections">
+    <button role="tab" id="tab-example" aria-selected="true" aria-controls="panel-example" data-tab="example">Explore an example</button>
+    <button role="tab" id="tab-predictions" aria-selected="false" aria-controls="panel-predictions" data-tab="predictions">Evaluate predictions</button>
+    <button role="tab" id="tab-training" aria-selected="false" aria-controls="panel-training" data-tab="training">Train locally</button>
+    <button role="tab" id="tab-study" aria-selected="false" aria-controls="panel-study" data-tab="study">Study record</button>
+  </nav>
+  <section id="panel-example" role="tabpanel" aria-labelledby="tab-example" class="workspace">
+    <aside class="controls card"><p class="eyebrow">Recorded teaching examples</p><h2>Explore the decision</h2><label for="example-select">Example</label><select id="example-select"></select>
+      <p class="notice" id="example-description"></p><div class="divider"></div><label for="review-budget">Cases you can review <strong id="budget-label">2</strong></label><input id="review-budget" type="range" min="0" max="10" value="2"><p class="hint">A count of cases, not a false-positive rate.</p>
+      <label for="example-threshold">Exploratory threshold <strong id="threshold-label">0.50</strong></label><input id="example-threshold" type="range" min="0" max="1" step=".01" value=".5"><p class="hint">Changing this after inspecting outcomes is exploration. A final threshold needs independent validation.</p>
+      <label for="decision-view">Decision shown in the table</label><select id="decision-view"><option value="budget">Review budget</option><option value="threshold">Fixed threshold</option></select>
+    </aside>
+    <div><div class="section-heading"><div><p class="eyebrow">Same cases. Explicit assumptions.</p><h2>Comparison</h2></div><span class="badge amber">Fictional scores</span></div><div id="example-results" class="results" aria-live="polite"></div></div>
+  </section>
+  <section id="panel-predictions" role="tabpanel" aria-labelledby="tab-predictions" hidden>
+    <div class="section-heading"><div><p class="eyebrow">Bring the predictions you already have</p><h2>Evaluate a CSV</h2></div><span class="badge">No model training</span></div>
+    <p class="section-copy">Your file needs the true labels and one or more score columns. Higher scores must mean the positive class you name. In browser mode the CSV stays in this page.</p>
+    <div class="workspace"><form id="prediction-form" class="card controls"><label for="prediction-file">UTF-8 prediction CSV</label><input id="prediction-file" type="file" accept=".csv,text/csv"><button type="button" class="subtle" id="use-prediction-example">Load fictional example</button>
+      <label for="prediction-label">True-label column</label><select id="prediction-label" required><option value="">Load a file first</option></select><label for="prediction-positive">Positive label</label><input id="prediction-positive" required placeholder="Exact event label"><label for="prediction-negative">Negative label</label><input id="prediction-negative" required placeholder="Exact non-event label">
+      <fieldset><legend>Score columns</legend><div id="score-columns" class="check-list"></div></fieldset>
+      <label for="score-kind">Score interpretation</label><select id="score-kind"><option value="probability">Probability, between 0 and 1</option><option value="ranking">Ranking score, higher means positive</option></select>
+      <div class="two-col"><div><label for="prediction-threshold">Fixed threshold</label><input id="prediction-threshold" type="number" step="any" value=".5"></div><div><label for="prediction-budget">Review budget</label><input id="prediction-budget" type="number" min="0" step="1" value="3" required></div></div>
+      <fieldset><legend>Optional cost assumptions</legend><p class="hint">Use one unit throughout. These are assumptions, not measured savings.</p><label for="cost-fp">Cost per false alarm</label><input id="cost-fp" type="number" min="0" step="any" placeholder="Optional"><label for="cost-fn">Cost per missed positive</label><input id="cost-fn" type="number" min="0" step="any" placeholder="Optional"><label for="cost-review">Cost per flagged case</label><input id="cost-review" type="number" min="0" step="any" value="0"></fieldset>
+      <button type="submit" class="primary">Evaluate predictions</button><p id="prediction-status" class="status" role="status"></p></form><div id="prediction-results" class="results"><div class="empty-state"><span aria-hidden="true">+</span><h3>Start with explicit labels</h3><p>Load a CSV or the fictional example. Results and download options will appear here.</p></div></div></div>
+  </section>
+  <section id="panel-training" role="tabpanel" aria-labelledby="tab-training" hidden>
+    <div class="section-heading"><div><p class="eyebrow">Fresh fits with separate validation and test data</p><h2>Train on your machine</h2></div><span class="badge" id="training-mode">Local backend required</span></div>
+    <p class="section-copy">The public static demo needs no paid server. Fresh training uses the installed Python package on your own machine. Each model has a 60-second worker limit; only one training request runs at a time.</p>
+    <div id="local-instructions" class="callout"><strong>Start the local workbench</strong><code>python -m rare_event_eval serve</code><p>Then open <span class="mono">http://127.0.0.1:8601</span>. Install the package with its training dependencies first; see the project README.</p></div>
+    <div class="workspace"><form id="training-form" class="card controls"><label for="training-file">Numeric-feature CSV</label><input id="training-file" type="file" accept=".csv,text/csv"><button type="button" class="subtle" id="use-training-example">Load fictional training cases</button><p id="training-file-note" class="hint">No real case study is claimed for the fictional training example.</p>
+      <label for="training-target">Target column</label><select id="training-target" required><option value="">Load a file first</option></select><label for="training-positive">Positive label</label><input id="training-positive" required><label for="training-negative">Negative label</label><input id="training-negative" required>
+      <label for="training-split">Generalization question</label><select id="training-split"><option value="stratified">Another random observation</option><option value="feature_group">A new exact feature pattern</option><option value="group">A new entity or group</option><option value="chronological">A later time period</option></select>
+      <label for="training-group">Group column, if applicable</label><select id="training-group"><option value="">None</option></select><label for="training-time">Time column, if applicable</label><select id="training-time"><option value="">None</option></select><p class="hint">Selected target, group and time columns are excluded from predictors. Combined group and chronological constraints are not supported.</p>
+      <fieldset><legend>Models</legend><div class="check-list"><label><input type="checkbox" name="model" value="logistic" checked>Logistic regression</label><label><input type="checkbox" name="model" value="rf_weighted" checked>Weighted random forest</label><label><input type="checkbox" name="model" value="balanced_rf">Balanced random forest</label><label><input type="checkbox" name="model" value="hist_gradient_boosting">Gradient boosting</label><label><input type="checkbox" name="model" value="csrboost">CSRBoost-style</label><label><input type="checkbox" name="model" value="erf">Experimental ERF</label></div></fieldset>
+      <label for="training-calibration">Probability calibration</label><select id="training-calibration"><option value="none">None</option><option value="sigmoid">Sigmoid, training-only cross-validation</option></select><p class="hint">Calibration adds fits and requires feasible training folds. Thresholds are then chosen on separate validation data.</p><button id="train-button" type="submit" class="primary" disabled>Run local comparison</button><p id="training-status" class="status" role="status"></p></form><div id="training-results" class="results"><div class="empty-state"><h3>A traceable fresh run</h3><p>Training-only preprocessing. Validation-only threshold selection. Explicit failures. An untouched final test partition.</p></div></div></div>
+  </section>
+  <section id="panel-study" role="tabpanel" aria-labelledby="tab-study" hidden><div class="section-heading"><div><p class="eyebrow">Research evidence</p><h2>What did the controlled pilot show?</h2></div><span class="badge">Exploratory study</span></div><div id="study-results"></div></section>
+  <figure class="study-figure"><img src="quality-vs-cost.png" alt="Five exploratory dataset comparisons of average precision and model fit time. ERF did not meet the predeclared expansion rule." loading="lazy"><figcaption>New pilot: two split means per family. Shared-workstation timings. Full results and limitations are in the Study record tab.</figcaption></figure>
+  <footer><div><strong>FixYourDataset</strong><p>Code and method decisions by Sherwan Ali.</p></div><p>Clear labels. Reproducible evaluation. Honest limits.</p><a href="https://github.com/SherwanAli0/erf-csrboost" target="_blank" rel="noreferrer">Public ERF source</a><a href="https://github.com/SherwanAli0/csrboost-audit" target="_blank" rel="noreferrer">Replication audit</a></footer>
+</main></body></html>

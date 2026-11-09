@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Rare-event evaluation report</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#192738;background:#f3f6fa;line-height:1.55}
+body{max-width:1120px;margin:32px auto;padding:0 20px}header,section{background:white;border:1px solid #dce4ed;border-radius:12px;padding:24px;margin-bottom:18px}
+h1,h2,h3{line-height:1.2}h1{margin-top:8px}h2{font-size:1.25rem}.eyebrow{color:#315f8b;font-weight:700;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}
+.summary{display:flex;gap:24px;flex-wrap:wrap}.summary strong{font-size:1.6rem;display:block}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{border-bottom:1px solid #dce4ed;text-align:left;padding:10px;vertical-align:top}th{background:#eef4fa}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f6fa;padding:16px;font-size:.85rem}
+li{margin:8px 0}.muted{color:#506176}@media print{body{background:white;margin:0;max-width:none}header,section{break-inside:avoid}}
+</style></head><body>
+<header><div class="eyebrow">Sherwan Ali | rare-event-eval 0.2.0</div>
+<h1>Rare-event evaluation</h1><p>Saved predictions evaluated locally. No model was trained.</p>
+<p>Fictional software fixture with invented scores. Not an ERF result. <span class="muted">(User-declared description.)</span></p>
+<div class="summary"><div><strong>10</strong>evaluated rows</div><div><strong>2</strong>positive rows</div>
+<div><strong>20.00%</strong>positive prevalence</div></div>
+<p>Positive label: <strong>event</strong>. Negative label: <strong>clear</strong>.</p>
+<p class="muted">Score kind: probability. Evaluation role: test (user-declared, unverified).</p></header>
+<section><h2>Model scores</h2><div class='scroll'><table><thead><tr><th scope='col'>Model</th><th scope='col'>Average precision</th><th scope='col'>ROC AUC</th><th scope='col'>Brier score</th><th scope='col'>Log loss</th></tr></thead><tbody><tr><td>baseline</td><td>0.583333</td><td>0.875</td><td>0.11812</td><td>0.361782</td></tr><tr><td>candidate</td><td>1</td><td>1</td><td>0.04492</td><td>0.206286</td></tr></tbody></table></div><p class="muted">Average precision is not trapezoidal PR area. Compare models on the same population; prevalence affects interpretation. Lower Brier score and log loss are better.</p></section>
+<section><h2>Decision policies</h2><div class='scroll'><table><thead><tr><th scope='col'>Model</th><th scope='col'>Fixed policy</th><th scope='col'>Flagged</th><th scope='col'>Positives found</th><th scope='col'>False alarms</th><th scope='col'>Positives missed</th><th scope='col'>Precision</th><th scope='col'>Recall</th><th scope='col'>Assumed cost</th></tr></thead><tbody><tr><td>baseline</td><td>Threshold 0.5</td><td>2</td><td>1</td><td>1</td><td>1</td><td>0.5</td><td>0.5</td><td>Unavailable</td></tr><tr><td>baseline</td><td>Top 2</td><td>2</td><td>1</td><td>1</td><td>1</td><td>0.5</td><td>0.5</td><td>Unavailable</td></tr><tr><td>baseline</td><td>Top 3</td><td>3</td><td>2</td><td>1</td><td>0</td><td>0.666667</td><td>1</td><td>Unavailable</td></tr><tr><td>candidate</td><td>Threshold 0.5</td><td>2</td><td>2</td><td>0</td><td>0</td><td>1</td><td>1</td><td>Unavailable</td></tr><tr><td>candidate</td><td>Top 2</td><td>2</td><td>2</td><td>0</td><td>0</td><td>1</td><td>1</td><td>Unavailable</td></tr><tr><td>candidate</td><td>Top 3</td><td>3</td><td>2</td><td>1</td><td>0</td><td>0.666667</td><td>1</td><td>Unavailable</td></tr></tbody></table></div><p class="muted">Thresholds use score &gt;= threshold. Top-k policies break ties by input row order. Fixed policies supplied before this evaluation; no optimization performed. No automatic winning model is declared.</p></section>
+<section><h2>Warnings and score ties</h2><ul><li>baseline: Fewer than 20 positive rows: estimates can be unstable; this is a descriptive warning, not a validity cutoff.</li><li>candidate: Fewer than 20 positive rows: estimates can be unstable; this is a descriptive warning, not a validity cutoff.</li></ul></section>
+<section><h2>Descriptive reliability bins</h2><p>These bins do not certify calibration. Intervals include their lower endpoint; only the last includes its upper endpoint. Small bins can be noisy.</p><h3>baseline</h3><div class='scroll'><table><thead><tr><th scope='col'>Score interval</th><th scope='col'>Rows</th><th scope='col'>Mean score</th><th scope='col'>Observed positive fraction</th></tr></thead><tbody><tr><td>0.00 to 0.10</td><td>3</td><td>0.05</td><td>0</td></tr><tr><td>0.10 to 0.20</td><td>2</td><td>0.125</td><td>0</td></tr><tr><td>0.20 to 0.30</td><td>1</td><td>0.2</td><td>0</td></tr><tr><td>0.30 to 0.40</td><td>2</td><td>0.325</td><td>0.5</td></tr><tr><td>0.40 to 0.50</td><td>0</td><td>Unavailable</td><td>Unavailable</td></tr><tr><td>0.50 to 0.60</td><td>1</td><td>0.55</td><td>1</td></tr><tr><td>0.60 to 0.70</td><td>1</td><td>0.62</td><td>0</td></tr><tr><td>0.70 to 0.80</td><td>0</td><td>Unavailable</td><td>Unavailable</td></tr><tr><td>0.80 to 0.90</td><td>0</td><td>Unavailable</td><td>Unavailable</td></tr><tr><td>0.90 to 1.00</td><td>0</td><td>Unavailable</td><td>Unavailable</td></tr></tbody></table></div><h3>candidate</h3><div class='scroll'><table><thead><tr><th scope='col'>Score interval</th><th scope='col'>Rows</th><th scope='col'>Mean score</th><th scope='col'>Observed positive fraction</th></tr></thead><tbody><tr><td>0.00 to 0.10</td><td>3</td><td>0.0533333</td><td>0</td></tr><tr><td>0.10 to 0.20</td><td>2</td><td>0.11</td><td>0</td></tr><tr><td>0.20 to 0.30</td><td>1</td><td>0.2</td><td>0</td></tr><tr><td>0.30 to 0.40</td><td>2</td><td>0.325</td><td>0</td></tr><tr><td>0.40 to 0.50</td><td>0</td><td>Unavailable</td><td>Unavailable</td></tr><tr><td>0.50 to 0.60</td><td>0</td><td>Unavailable</td><td>Unavailable</td></tr><tr><td>0.60 to 0.70</td><td>1</td><td>0.65</td><td>1</td></tr><tr><td>0.70 to 0.80</td><td>0</td><td>Unavailable</td><td>Unavailable</td></tr><tr><td>0.80 to 0.90</td><td>1</td><td>0.8</td><td>1</td></tr><tr><td>0.90 to 1.00</td><td>0</td><td>Unavailable</td><td>Unavailable</td></tr></tbody></table></div></section>
+<section><h2>Cost assumptions</h2><p>No cost assumptions supplied. Cost results are unavailable.</p></section>
+<section><h2>Checks and limitations</h2><div class='scroll'><table><thead><tr><th scope='col'>Check</th><th scope='col'>Status</th></tr></thead><tbody><tr><td>labels_and_scores</td><td>validated</td></tr><tr><td>training_leakage</td><td>not_checked</td></tr><tr><td>train_test_overlap</td><td>not_checked</td></tr><tr><td>temporal_or_group_independence</td><td>not_checked</td></tr><tr><td>uncertainty</td><td>not_estimated</td></tr></tbody></table></div><ul><li>Saved predictions cannot establish that model training, splitting or preprocessing avoided leakage.</li><li>The evaluation role is user-declared. Score orientation and row alignment must be supplied correctly.</li><li>Inspecting many policies on a test set is exploratory; choose a final policy using independent validation data.</li><li>Metrics are descriptive point estimates, not confidence intervals or evidence of general superiority.</li><li>Calibration bins are descriptive. A probability score is not automatically a calibrated event probability.</li><li>Average precision uses recall-increment weighting, not trapezoidal PR area; prevalence affects its interpretation.</li><li>Cost estimates use hypothetical additive assumptions and do not establish realized savings or review outcomes.</li><li>JSON and HTML contain aggregates, not raw labels or prediction rows; aggregates can still be sensitive.</li></ul></section>
+<section><h2>Configuration and provenance</h2><pre>{
+  &quot;schema_version&quot;: &quot;1.0&quot;,
+  &quot;tool&quot;: {
+    &quot;name&quot;: &quot;rare-event-eval&quot;,
+    &quot;version&quot;: &quot;0.2.0&quot;,
+    &quot;python&quot;: &quot;3.12.14&quot;,
+    &quot;numpy&quot;: &quot;2.2.6&quot;,
+    &quot;scikit_learn&quot;: &quot;1.8.0&quot;
+  },
+  &quot;created_utc&quot;: &quot;2026-11-07T07:48:04.874839+00:00&quot;,
+  &quot;task&quot;: {
+    &quot;kind&quot;: &quot;binary_classification&quot;,
+    &quot;positive_label&quot;: &quot;event&quot;,
+    &quot;negative_label&quot;: &quot;clear&quot;,
+    &quot;score_kind&quot;: &quot;probability&quot;,
+    &quot;evaluation_role&quot;: &quot;test&quot;,
+    &quot;role_verified&quot;: false
+  },
+  &quot;data&quot;: {
+    &quot;rows&quot;: 10,
+    &quot;positive_rows&quot;: 2,
+    &quot;negative_rows&quot;: 8,
+    &quot;positive_prevalence&quot;: 0.2,
+    &quot;rows_dropped&quot;: 0,
+    &quot;description&quot;: &quot;Fictional software fixture with invented scores. Not an ERF result.&quot;,
+    &quot;description_verified&quot;: false,
+    &quot;input_sha256&quot;: &quot;47f61bccfd47eeaffbcf8499d75d36e4b5de58fe0c0a51a82f5c6eb4a917af18&quot;
+  },
+  &quot;policies&quot;: {
+    &quot;threshold&quot;: 0.5,
+    &quot;threshold_rule&quot;: &quot;score &gt;= threshold&quot;,
+    &quot;selection&quot;: &quot;Fixed policies supplied before this evaluation; no optimization performed.&quot;,
+    &quot;review_budgets&quot;: [
+      2,
+      3
+    ],
+    &quot;tie_break&quot;: &quot;input row order&quot;,
+    &quot;cost_assumptions&quot;: null
+  }
+}</pre><p class="muted">This report contains aggregates, not raw prediction rows. Share it deliberately; aggregates can still reveal sensitive information.</p></section>
+</body></html>

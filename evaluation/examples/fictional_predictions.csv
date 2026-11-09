@@ -1,0 +1,11 @@
+outcome,baseline,candidate
+clear,0.02,0.03
+clear,0.08,0.10
+event,0.55,0.80
+clear,0.62,0.35
+clear,0.15,0.12
+clear,0.20,0.30
+event,0.35,0.65
+clear,0.10,0.05
+clear,0.05,0.08
+clear,0.30,0.20
