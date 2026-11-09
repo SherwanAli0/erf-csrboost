@@ -759,7 +759,7 @@ class Coordinator:
                 return JobError(code, 500, message)
             if code == "JOB_OUT_OF_MEMORY":
                 return JobError(code, 503, message)
-            return JobError(code, 422, message)
+            return JobError(code, 422, message, reason.get('details') if code=='APP_IMPORT_SELECTION_REQUIRED' else None)
         if state == states.TIMED_OUT:
             return JobError(code, 503, message)
         if state == states.CANCELLED:
@@ -924,6 +924,13 @@ class Coordinator:
                   if isinstance(message, str) else "The job failed."}
         if code.startswith("LEGACY_") and isinstance(message, str):
             reason["message"] = message[:2000]
+        if code=='APP_IMPORT_SELECTION_REQUIRED':
+            details=error.get('details') or {}
+            choices=details.get('choices') if isinstance(details,dict) else None
+            if (isinstance(choices,list) and len(choices)<=30
+                and all(isinstance(n,str) and 0<len(n)<=200 for n in choices)
+                and details.get('selection_kind') in ('sheet','member')):
+                reason['details']={'selection_kind':details['selection_kind'],'choices':choices}
         return reason
 
     @staticmethod

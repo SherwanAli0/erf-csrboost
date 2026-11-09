@@ -62,6 +62,7 @@ class ImportHttp(ApiCase):
         refused=self.client.post('/api/v1/datasets',content=raw,headers=headers)
         self.assertEqual(refused.status_code,422,refused.text)
         self.assertEqual(refused.json()['error']['code'],'APP_IMPORT_SELECTION_REQUIRED')
+        self.assertEqual(refused.json()['error']['details'],{'selection_kind':'member','choices':['one.csv','chosen.csv']})
         headers['X-Import-Selection']=quote(json.dumps({'member':'chosen.csv'}))
         created=self.client.post('/api/v1/datasets',content=raw,headers=headers)
         self.assertEqual(created.status_code,201,created.text);ds=created.json()

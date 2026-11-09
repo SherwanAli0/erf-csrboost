@@ -1,4 +1,21 @@
-# ERF-CSRBoost: Resampled Forest Ensembles for Imbalanced Classification
+# FixYourDataset: Imbalanced Classification Workbench
+
+Compare models on held-out data, evaluate saved predictions in your browser and export the settings
+behind a result. The workbench uses the reusable `rare-event-eval` package and includes ERF-CSRBoost
+as one named model recipe.
+
+[Try FixYourDataset](https://fixyourdataset.fly.dev) |
+[Package and CLI](evaluation/README.md) |
+[Engineering case study](docs/ENGINEERING-CASE-STUDY.md) |
+[Architecture](docs/ARCHITECTURE.md) |
+[Research evidence](research/RESEARCH-EVIDENCE.md)
+
+Start with **Explore an example** for a recorded synthetic run, or **Evaluate predictions** for
+browser-only analysis without uploading a CSV. Hosted training and row exports are explicit actions.
+
+![FixYourDataset workbench showing a recorded synthetic comparison](docs/assets/workbench-desktop.png)
+
+## Research context: ERF-CSRBoost
 
 ERF-CSRBoost combines clustered undersampling, SMOTE and bagged random forests to study classification with imbalanced labels. Its implementation averages the predictions of 20 resampled forests, each containing 50 trees.
 
