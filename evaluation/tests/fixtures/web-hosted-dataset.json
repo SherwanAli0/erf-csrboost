@@ -1,0 +1,336 @@
+{
+ "dataset_id": "ds_g_hnC5XRgG9qQOkWIZZIww",
+ "capability": "fixture-dataset-token",
+ "profile": {
+  "schema": "app-profile-1.0",
+  "rows": 583,
+  "columns": 11,
+  "parsing": {
+   "parser": "legacy_engine.read_csv",
+   "source_name": null,
+   "input_sha256": "c3d90c0dd5cf736663b6931da6502c3845ba044c609499ea9beae07f168f653e",
+   "input_bytes": 27943,
+   "converted_csv_bytes": 27943,
+   "format_notes": [],
+   "read_warnings": [],
+   "rows_read": 583,
+   "rows_accepted": 583,
+   "malformed_rows_skipped_by_reader": null,
+   "rows_rejected": 0,
+   "malformed_row_policy": "legacy reader: tolerant; skipped rows are counted in read_warnings",
+   "row_exclusions": [],
+   "missing_tokens": [
+    "(blank)",
+    "?",
+    "N/A",
+    "n/a",
+    "plus the default missing-value spellings of pandas"
+   ],
+   "note": "Delimiter, header, number-format and missing-value handling were decided by the legacy reader on the whole table before any split; no label or fitted statistic is used by it."
+  },
+  "schema_columns": [
+   {
+    "column": "Age",
+    "dtype": "numeric",
+    "unique": 72,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "Gender",
+    "dtype": "numeric",
+    "unique": 2,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "Total_Bilirubin",
+    "dtype": "numeric",
+    "unique": 113,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "Direct_Bilirubin",
+    "dtype": "numeric",
+    "unique": 80,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "Alkaline_Phosphotase",
+    "dtype": "numeric",
+    "unique": 263,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "Alamine_Aminotransferase",
+    "dtype": "numeric",
+    "unique": 152,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "Aspartate_Aminotransferase",
+    "dtype": "numeric",
+    "unique": 177,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "Total_Proteins",
+    "dtype": "numeric",
+    "unique": 58,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "Albumin",
+    "dtype": "numeric",
+    "unique": 40,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "Albumin_Globulin_Ratio",
+    "dtype": "numeric",
+    "unique": 70,
+    "missing": 0,
+    "id_like": false
+   },
+   {
+    "column": "target",
+    "dtype": "numeric",
+    "unique": 2,
+    "missing": 0,
+    "id_like": false
+   }
+  ],
+  "target": {
+   "column": "target",
+   "source": "suggestion",
+   "suggestion": {
+    "column": "target",
+    "status": "suggested, needs confirmation",
+    "confident": true,
+    "reason": null,
+    "source": "legacy engine.profile"
+   }
+  },
+  "classes": {
+   "column": "target",
+   "missing_target_rows": 0,
+   "distinct_labels": 2,
+   "labels": [
+    {
+     "label": "0",
+     "count": 416
+    },
+    {
+     "label": "1",
+     "count": 167
+    }
+   ],
+   "labels_truncated": false,
+   "suggested_positive": {
+    "label": "1",
+    "status": "suggested, needs confirmation",
+    "basis": "rarest label by count (the rule the legacy app applied without asking)"
+   },
+   "suggested_label_mode": "binary"
+  },
+  "excluded_columns": [
+   {
+    "column": "target",
+    "role": "target"
+   }
+  ],
+  "suggested_exclusions": [],
+  "limits": {
+   "configured": {
+    "max_bytes": 8388608,
+    "max_rows": 10000,
+    "max_columns": 205,
+    "max_categorical_cardinality": 50,
+    "max_expanded_features": 100
+   },
+   "status": "ok",
+   "code": null,
+   "message": null,
+   "violations": [],
+   "status_if_suggested_exclusions_applied": null
+  },
+  "package_profile": {
+   "rows": 583,
+   "columns_total": 11,
+   "predictor_count": 10,
+   "predictors": [
+    "Age",
+    "Gender",
+    "Total_Bilirubin",
+    "Direct_Bilirubin",
+    "Alkaline_Phosphotase",
+    "Alamine_Aminotransferase",
+    "Aspartate_Aminotransferase",
+    "Total_Proteins",
+    "Albumin",
+    "Albumin_Globulin_Ratio"
+   ],
+   "constant_columns": [],
+   "empty_columns": [],
+   "duplicate_columns": [],
+   "duplicate_feature_groups": {
+    "groups": 13,
+    "rows_in_groups": 26,
+    "basis": "exact predictor values (hash of normalized cells), missing values treated as equal",
+    "interpretation": "Repeated patterns are a diagnostic, not automatic proof of leakage."
+   },
+   "expanded_feature_estimate": {
+    "numeric_like": 10,
+    "categorical_one_hot": 0,
+    "total": 10,
+    "basis": "numeric, constant and empty columns count 1; categorical columns count their distinct non-missing values (an upper bound for any one training partition)"
+   },
+   "target_summary": {
+    "column": "target",
+    "missing": 0,
+    "present": 583,
+    "distinct": 2,
+    "distinct_capped": false,
+    "value_counts": {
+     "0": 416,
+     "1": 167
+    }
+   },
+   "columns": {
+    "Age": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 51,
+     "distinct_capped": true,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "Gender": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 2,
+     "distinct_capped": false,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "Total_Bilirubin": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 51,
+     "distinct_capped": true,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "Direct_Bilirubin": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 51,
+     "distinct_capped": true,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "Alkaline_Phosphotase": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 51,
+     "distinct_capped": true,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "Alamine_Aminotransferase": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 51,
+     "distinct_capped": true,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "Aspartate_Aminotransferase": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 51,
+     "distinct_capped": true,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "Total_Proteins": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 51,
+     "distinct_capped": true,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "Albumin": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 40,
+     "distinct_capped": false,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "Albumin_Globulin_Ratio": {
+     "role": "predictor",
+     "kind": "numeric",
+     "value_type": "numeric",
+     "distinct": 51,
+     "distinct_capped": true,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 1
+    },
+    "target": {
+     "role": "target",
+     "kind": null,
+     "value_type": "numeric",
+     "distinct": 2,
+     "distinct_capped": false,
+     "missing": 0,
+     "missing_fraction": 0,
+     "expanded_width": 0
+    }
+   }
+  },
+  "notes": [
+   "Nothing was removed or changed by this profile.",
+   "The target, the positive class and every exclusion must be confirmed by the caller."
+  ]
+ },
+ "limits": {
+  "upload_limit_bytes": 8388608,
+  "max_rows": 10000,
+  "max_features": 100,
+  "max_models_per_job": 5,
+  "per_model_timeout_seconds": 60,
+  "job_timeout_seconds": 300,
+  "queue_wait_seconds": 120,
+  "dataset_idle_seconds": 1800,
+  "finished_job_seconds": 1800
+ },
+ "expires_at": "2026-11-09T20:07:31Z"
+}

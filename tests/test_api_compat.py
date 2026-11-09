@@ -228,23 +228,24 @@ class LegacyPost(LegacyCase):
 # ============================================================================================ pages and stats
 
 class LegacyPages(LegacyCase):
-    def test_the_index_page_and_head(self):
-        page = (support.ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-        for path in ("/", "/index.html"):
-            STATE["calls"].clear()
-            response = self.client.get(path, headers={"User-Agent": "tester", "Referer": "https://example.test/x?q=1"})
-            self.assertEqual((response.status_code, response.headers["content-type"]), (200, "text/html; charset=utf-8"))
-            self.assertEqual(response.text, page)
-            self.assertEqual(response.headers["cache-control"], "no-store")
-            self.assertEqual([(call["kind"], call["agent"], call["referrer"], call["owner"]) for call in STATE["calls"]],
-                             [("visit", "tester", "https://example.test/x?q=1", False)])
-            self.assertNotIn("referrer-policy", response.headers)   # the app pages keep today's headers
-            STATE["calls"].clear()
-            head = self.client.head(path)
-            self.assertEqual((head.status_code, head.headers["content-type"]), (200, "text/html; charset=utf-8"))
-            self.assertEqual(head.headers["content-length"], str(len(page.encode("utf-8"))))
-            self.assertEqual(head.content, b"")
-            self.assertEqual(STATE["calls"], [])   # uptime probes are not visits
+    def test_the_classic_page_is_the_old_index_page_and_head(self):
+        # /classic serves frontend/index.html, which / served before the workbench (tests/test_web_serving.py
+        # covers the workbench at / and /index.html).
+        page = (support.ROOT / "frontend" / "index.html").read_bytes()
+        STATE["calls"].clear()
+        response = self.client.get("/classic", headers={"User-Agent": "tester", "Referer": "https://example.test/x?q=1"})
+        self.assertEqual((response.status_code, response.headers["content-type"]), (200, "text/html; charset=utf-8"))
+        self.assertEqual(response.content, page)
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        self.assertEqual([(call["kind"], call["agent"], call["referrer"], call["owner"]) for call in STATE["calls"]],
+                         [("visit", "tester", "https://example.test/x?q=1", False)])
+        self.assertNotIn("referrer-policy", response.headers)   # the old page keeps the headers it always had
+        STATE["calls"].clear()
+        head = self.client.head("/classic")
+        self.assertEqual((head.status_code, head.headers["content-type"]), (200, "text/html; charset=utf-8"))
+        self.assertEqual(head.headers["content-length"], str(len(page)))
+        self.assertEqual(head.content, b"")
+        self.assertEqual(STATE["calls"], [])   # uptime probes are not visits
 
     def test_a_visit_from_the_owner_browser_is_tagged_and_a_referrer_holding_the_key_is_not_stored(self):
         self.client.cookies.set("fyd_owner", track.owner_token())

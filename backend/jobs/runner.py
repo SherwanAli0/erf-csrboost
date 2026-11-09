@@ -53,7 +53,7 @@ MAX_LEGACY_MESSAGE = 2000
 LEGACY_KEY_MESSAGE = ("The request is missing a required field, or names a column that is not in the file: {key}.")
 _CODE = re.compile(r"^[A-Z][A-Z0-9_]{2,63}$")
 _PATH = re.compile(r"(?:[A-Za-z]:[\\/][^\s'\"<>|]*)|(?:\\\\[^\s'\"<>|]+)|(?:(?<![\w.])/(?:[\w.\-~]+/)+[\w.\-~]*)")
-LEGACY_COMMANDS = ("legacy_profile", "legacy_analyze", "legacy_score", "legacy_convert")
+LEGACY_COMMANDS = ("legacy_profile", "legacy_analyze", "legacy_score", "legacy_convert", "legacy_tools")
 LEGACY_TEST_COMMANDS = ("test_legacy_big_output",)
 TEST_COMMANDS = ("test_sleep", "test_spawn", "test_crash", "test_big_output", "test_env", "test_memory") \
     + LEGACY_TEST_COMMANDS
@@ -273,6 +273,10 @@ def _legacy_engine():
 
 def _cmd_legacy(command: str, request: dict, job_dir: Path, progress: Progress):
     payload = request.get("payload") or {}
+    if command == "legacy_tools":
+        from services.toolbox import execute
+        progress.stage("fitting")
+        return execute(payload), False
     engine = _legacy_engine()
     progress.stage("profiling" if command == "legacy_profile" else "fitting")
     if command == "legacy_profile":

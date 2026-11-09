@@ -187,6 +187,35 @@ The `train` command uses the adapter when the CSV has a non-numeric predictor or
 otherwise the numeric parser and recipes run as in 0.3.0. A categorical predictor needs pandas (extra `[app]`); the CLI
 reports a clear error without it. `--categorical reject` keeps the numeric-only behavior.
 
+### Provenance label and application fields
+
+An application that stores or serves a training report may add three optional top-level fields. They are additive, are
+not produced by the package's training functions, and a `training-1.1` consumer that does not know them ignores them.
+
+| Field | Meaning |
+|---|---|
+| `provenance` | Where the result came from: `fictional fixture`, `recorded app run`, `fresh app run` or `historical research record`. `training_report` copies it, and `render_html` prints it, only when it is one of these four values; any other value is shown as "not labelled". A report with no label (for example from the command line) renders as "not labelled". A result produced by an application is never a historical research result. |
+| `app` | `app_version`, `release_id` and a note: the application that produced the report. |
+| `example` | Optional text for a recorded example: `title`, `description`, `data_origin` and `note` are printed (escaped, at most 1,200 characters each); other keys are carried in the JSON only. |
+
+`training_report` also copies `predictor_kinds` and the input hash (as `data.input_sha256`) of the training result into
+the report it builds, so the HTML can show them; `training_provenance` keeps exactly its earlier keys.
+
+### Standalone HTML report
+
+`render_html` writes one page with inline style and no script, no remote asset and no input rows. Every value that comes
+from the data (labels, column names, parser notes, failure messages) is escaped. The page has a language, one `h1`, a
+`main` landmark, a skip link, a caption on every table, scrollable tables that can take keyboard focus, and states a
+status in words rather than colour. For a `training-1.1` result it prints, before the metrics: the provenance label and
+its meaning, the dataset and label mapping with original, missing-target and effective row counts and the input hash,
+the predictors with their types and the excluded columns with their roles, the requested and achieved split with
+partition counts, every requested model with its recipe id, family, declared capacity, qualitative cost class, status,
+reason code, fit time, worker time and peak memory (models without a result are listed beside the successes and in a
+table of their own), and the threshold source of each model. After the metrics it prints the decision policies, the
+review budgets, the cost assumptions with the statement that they are assumptions and not measured savings, metric
+definitions, the checks and limitations, and the configuration as JSON. Reports of schema `training-1.0` and saved
+prediction reports (`1.0`) render without the training sections.
+
 ## Primary references
 
 - [Average precision](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html)

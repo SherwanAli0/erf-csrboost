@@ -33,13 +33,13 @@ log = logging.getLogger("fyd.jobs")
 
 RUNNER_PATH = Path(__file__).resolve().parent / "runner.py"
 LIGHT_COMMANDS = ("profile", "legacy_profile", "legacy_convert")
-HEAVY_COMMANDS = ("train", "legacy_analyze", "legacy_score")
+HEAVY_COMMANDS = ("train", "legacy_analyze", "legacy_score", "legacy_tools")
 TEST_COMMANDS = ("test_sleep", "test_spawn", "test_crash", "test_big_output", "test_env", "test_memory",
                  "test_legacy_big_output")
 MEMORY_LIMIT_REASON = {"code": "MEMORY_LIMIT_EXCEEDED", "message":
                        "This request needs more memory than the service allows for one job. Try a smaller file."}
 LEGACY_PROFILE_RESERVE = 4 * 1024 * 1024   # a legacy profile result holds statistics only
-EXPORT_KINDS = ("report_json", "report_html", "config_json")
+EXPORT_KINDS = ("report_json", "report_html", "config_json", "repro_bundle")
 TRAIN_FIELDS = ("target", "positive_label", "negative_label", "one_vs_rest", "models", "split_mode", "seed",
                 "calibration", "id_columns", "exclude_columns", "group_column", "time_column", "missing_policy",
                 "review_fractions", "costs")
@@ -90,6 +90,16 @@ def size_text(size: int) -> str:
         return f"{max(1, size // 1024)} KB"
     text = f"{size / (1024 * 1024):.1f}"
     return (text[:-2] if text.endswith(".0") else text) + " MB"
+
+
+
+def _services():
+    """The application service layer (``backend/services``), imported on first use."""
+    backend = str(Path(__file__).resolve().parent.parent)
+    if backend not in sys.path:
+        sys.path.insert(0, backend)
+    import services
+    return services
 
 
 def _short(identifier) -> str:
@@ -213,6 +223,8 @@ class Coordinator:
         self._pending_delete: set = set()
         self._next_sweep = 0.0
         self._clock = time.monotonic
+        # Set by the web layer (api.create_app): app version and source release id, written into reports and bundles.
+        self.app_context: dict = {"app_version": "unknown", "release_id": "unknown"}
 
     # ================================================================ lifecycle
 
@@ -424,10 +436,15 @@ class Coordinator:
             report = self._read_report(job)
             if report is None:
                 return states.EXPIRED, None
-            return state, report
+            return state, self._annotated(report)
 
     def job_export(self, job_id: str, capability: str, kind: str):
-        """``(bytes, content_type, filename)`` for ``report_json``, ``report_html`` or ``config_json``."""
+        """``(bytes, content_type, filename)`` for ``report_json``, ``report_html``, ``config_json`` or ``repro_bundle``.
+
+        Every export is built from the stored report and the validated request only: none holds a row of the
+        uploaded table. The report carries the provenance label ``fresh app run`` and the app block (see
+        ``services.annotate_report``); ``/result`` returns the same report.
+        """
         if kind not in EXPORT_KINDS:
             raise JobError("EXPORT_UNKNOWN", 404, "Unknown export.")
         with self._lock:
@@ -440,23 +457,43 @@ class Coordinator:
             if report is None:
                 raise JobError("JOB_EXPIRED", 410, "This job has expired and its files were deleted.")
             params = dict(job.params or {})
+        services = _services()
+        report = self._annotated(report, services)
         if kind == "report_json":
-            return json.dumps(report, indent=2, allow_nan=False).encode("utf-8"), "application/json", "fyd-report.json"
+            return services.dump_json(report), "application/json", "fyd-report.json"
         if kind == "config_json":
-            body = {"schema": "fyd-job-config-1.0", "request": params, "limits": self.config.limits_summary(),
-                    "report_schema_version": report.get("schema_version"), "input_sha256": report.get("input_sha256"),
-                    "note": "The settings of this run. Run it again with the same data to compare."}
-            return (json.dumps(body, indent=2, allow_nan=False).encode("utf-8"), "application/json",
-                    "fyd-config.json")
-        backend = str(Path(__file__).resolve().parent.parent)
-        if backend not in sys.path:
-            sys.path.insert(0, backend)
-        import services
+            body = self._config_body(report, params, services)
+            return services.dump_json(body), "application/json", "fyd-config.json"
         try:
             html = services.render_report_html(report)
         except Exception:  # noqa: BLE001 - the renderer's own errors must not leak
             raise JobError("EXPORT_FAILED", 500, "The report could not be rendered.") from None
-        return html.encode("utf-8"), "text/html; charset=utf-8", "fyd-report.html"
+        if kind == "report_html":
+            return html.encode("utf-8"), "text/html; charset=utf-8", "fyd-report.html"
+        settings = services.effective_settings(params, self.config.tabular_limits_kwargs(),
+                                               self.config.model_timeout_seconds)
+        try:
+            data = services.build_repro_bundle(report, settings, self._config_body(report, params, services), html,
+                                               self.app_context)
+        except services.ExportError as exc:
+            raise JobError(exc.code, 500, str(exc)) from None
+        except Exception:  # noqa: BLE001 - never leak the text of an unexpected failure
+            raise JobError("EXPORT_FAILED", 500, "The bundle could not be built.") from None
+        return data, "application/zip", "fyd-repro-bundle.zip"
+
+    def _annotated(self, report: dict, services=None) -> dict:
+        services = services or _services()
+        return services.annotate_report(report, services.FRESH_RUN, self.app_context)
+
+    def _config_body(self, report: dict, params: dict, services) -> dict:
+        settings = services.effective_settings(params, self.config.tabular_limits_kwargs(),
+                                               self.config.model_timeout_seconds)
+        return {"schema": "fyd-job-config-1.0", "provenance": report.get("provenance"), "request": params,
+                "effective": settings, "limits": self.config.limits_summary(),
+                "report_schema_version": report.get("schema_version"), "input_sha256": report.get("input_sha256"),
+                "app": report.get("app"),
+                "note": "The settings of this run, with every default written out under effective. Run it again "
+                        "with the same data to compare. It holds no row of your data."}
 
     def _owned_job(self, job_id, capability):
         """Caller holds the lock. Returns ``(job, None)`` or ``(None, tombstone)``; otherwise NOT_FOUND."""

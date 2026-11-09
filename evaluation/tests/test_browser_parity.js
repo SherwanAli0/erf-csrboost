@@ -1,7 +1,7 @@
 /* Sherwan Ali. Browser arithmetic checked against Python-generated fixtures. */
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const metrics=require('../src/rare_event_eval/web/metrics.js');
+const metrics=require('../src/rare_event_eval/web/scoring-core.js');
 const cases=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/browser-parity.json'),'utf8'));
 let compared=0;
 function close(actual,expected,location){

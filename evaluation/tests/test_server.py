@@ -65,7 +65,7 @@ class LocalAPI(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder)/'demo'
             export_demo(target)
-            for name in ('index.html', 'app.js', 'metrics.js', 'demo-data.js', 'style.css', 'quality-vs-cost.png'):
+            for name in ('index.html', 'app.js', 'scoring-core.js', 'demo-data.js', 'style.css', 'quality-vs-cost.png'):
                 self.assertTrue((target/name).is_file())
             with self.assertRaises(ValueError):
                 export_demo(target)

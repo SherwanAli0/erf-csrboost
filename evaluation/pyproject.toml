@@ -26,4 +26,4 @@ rare-event-eval = "rare_event_eval.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-rare_event_eval = ["py.typed", "web/*.html", "web/*.css", "web/*.js", "web/*.png", "web/.nojekyll"]
+rare_event_eval = ["py.typed", "web/*.html", "web/*.css", "web/*.js", "web/*.png", "web/*.json", "web/.nojekyll"]

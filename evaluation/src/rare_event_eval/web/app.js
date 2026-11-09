@@ -1,158 +1,377 @@
-/* Sherwan Ali. Static evaluation and an optional loopback-only training backend. */
+/* Sherwan Ali. Browser glue for the workbench: navigation, event wiring and focus handling. The logic lives in the
+   pure modules (flow.js, views.js, report-view.js, predictions.js); this file holds no network code, which is in
+   api-client.js only. Access tokens never reach this file. */
 (function () {
   'use strict';
-  const $ = id => document.getElementById(id), M = window.RareEventMetrics;
-  const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const number = (v, digits=3) => v == null ? 'Unavailable' : Number(v).toLocaleString(undefined,{maximumFractionDigits:digits});
-  const percent = v => v == null ? 'Unavailable' : `${number(v*100,1)}%`;
-  let backend = false, predictionCSV = '', trainingCSV = '', trainingDescription = '';
-  const statusText = value => ({not_checked:'Not checked',not_estimated:'Not estimated',row_indices_disjoint:'Training and test rows are disjoint'}[value] || (String(value).startsWith('not_certified:')?'Data availability and domain semantics still need review':value));
-  function setTab(name) {
-    document.querySelectorAll('[data-tab]').forEach(button => {
-      const selected = button.dataset.tab === name;
-      button.setAttribute('aria-selected',String(selected)); button.tabIndex = selected ? 0 : -1;
-      $(`panel-${button.dataset.tab}`).hidden = !selected;
-    });
+  // A script that failed to load leaves a global missing. preflight.js then shows the alert with its Reload button.
+  if (window.FYD_PREFLIGHT && window.FYD_PREFLIGHT.missing(window).length) return;
+  const F = window.FYD, U = F.util, C = F.content, RV = F.reportView, V = F.views, P = F.predictions, MODELS = F.MODELS, M = window.RareEventMetrics, esc = U.esc;
+  const $ = id => document.getElementById(id);
+  const api = F.api.createApiClient();
+  const flow = F.flow.createAnalysisFlow({ api });
+  const env = { mode: 'static', hosted: false, recorded: null, version: null, detected: false };
+  const TITLES = { overview: 'Overview', example: 'Explore an example', analyze: 'Analyze a dataset', tools: 'Data tools', evaluate: 'Evaluate predictions', research: 'Research', how: 'How it works' };
+  const ROUTES = { overview: 'overview', example: 'overview', analyze: 'analyze', tools: 'analyze', evaluate: 'evaluate', research: 'research', how: 'how' };
+  const TABS = ['overview', 'analyze', 'evaluate', 'research', 'how'];
+  let currentRoute = null;
+  /* The live region is cleared first and filled a moment later, so the same message can be announced again and a change made together with a redraw is not lost. */
+  let sayTimer = null;
+  const say = text => {
+    const el = $('live-status');
+    if (!el) return;
+    el.textContent = '';
+    if (sayTimer) clearTimeout(sayTimer);
+    sayTimer = setTimeout(() => { el.textContent = text; sayTimer = null; }, 60);
+  };
+
+  /* ---------- routing and tabs ---------- */
+  function routeFromHash() {
+    const m = /^#\/([a-z]+)/.exec(location.hash);
+    return m && ROUTES[m[1]] ? m[1] : null;
   }
+  function show(route, options = {}) {
+    const tab = ROUTES[route];
+    TABS.forEach(name => {
+      const selected = name === tab, button = $('tab-' + name);
+      button.setAttribute('aria-selected', String(selected)); button.tabIndex = selected ? 0 : -1;
+      $('panel-' + name).hidden = !selected;
+    });
+    document.title = `${TITLES[route] || TITLES[tab]} | FixYourDataset`;
+    if (currentRoute !== route) say(`${TITLES[route] || TITLES[tab]} page.`);
+    if (currentRoute === 'tools' && route !== 'tools') {
+      tools.reset(); $('data-tools-root').innerHTML = '';
+    }
+    currentRoute = route;
+    $('analyze-root').hidden = route === 'tools';
+    $('data-tools-root').hidden = route !== 'tools';
+    if (route === 'tools') {
+      tools.reset(); $('data-tools-root').innerHTML = F.tools.render(env.hosted);
+    } else if (tab === 'analyze') renderAnalyzePanel(options);
+    if (route === 'example') { const h = $('example-heading'); if (h && options.focus) { h.scrollIntoView(); h.focus({ preventScroll: true }); } }
+    else if (options.focus) { const h = $('panel-' + tab).querySelector('h1,h2'); if (h) { window.scrollTo(0, 0); h.focus({ preventScroll: true }); } }
+  }
+  function go(route, focus) {
+    const target = '#/' + route;
+    if (location.hash === target) show(route, { focus }); else { pendingFocus = !!focus; location.hash = target; }
+  }
+  let pendingFocus = false;
+  window.addEventListener('hashchange', () => { const r = routeFromHash(); if (!r) return; show(r, { focus: pendingFocus }); pendingFocus = false; });
   document.querySelectorAll('[data-tab]').forEach(button => {
-    button.addEventListener('click',() => setTab(button.dataset.tab));
-    button.addEventListener('keydown',event => {
-      if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+    button.addEventListener('click', () => go(button.dataset.tab, false));
+    button.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      const tabs = [...document.querySelectorAll('[data-tab]')], index=tabs.indexOf(button);
-      const next = event.key==='Home' ? 0 : event.key==='End' ? tabs.length-1 : (index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
-      setTab(tabs[next].dataset.tab);tabs[next].focus();
+      const i = TABS.indexOf(button.dataset.tab);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? TABS.length - 1 : (i + (event.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length;
+      go(TABS[next], false); $('tab-' + TABS[next]).focus();
     });
   });
-  function download(content,name,type) {
-    const url=URL.createObjectURL(new Blob([content],{type})), link=document.createElement('a');
-    link.href=url;link.download=name;link.click();setTimeout(() => URL.revokeObjectURL(url),1000);
+  document.addEventListener('click', event => {
+    const link = event.target.closest('[data-action="route"]');
+    if (link) { event.preventDefault(); go(link.dataset.route, true); }
+  });
+
+  /* ---------- downloads ---------- */
+  function saveBlob(blob, name) {
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  function reportHTML(report,view='budget',downloads=true) {
-    const data=report.data, entries=Object.entries(report.models);
-    const bars=entries.map(([name,row]) => `<div class="bar-row"><span>${escape(name)}</span><svg role="img" aria-label="${escape(name)} average precision ${number(row.metrics.average_precision)}" viewBox="0 0 300 12" preserveAspectRatio="none"><rect class="bar-track" width="300" height="12" rx="3"></rect><rect class="bar-fill" width="${Math.max(0,Math.min(300,(row.metrics.average_precision||0)*300))}" height="12" rx="3"></rect></svg><strong>${number(row.metrics.average_precision)}</strong></div>`).join('');
-    const rows=entries.map(([name,row]) => {
-      const decision=view==='threshold' ? row.threshold_result : row.review_budget_results[0];
-      if (!decision) return `<tr><td>${escape(name)}</td><td colspan="7">No decision policy supplied.</td></tr>`;
-      return `<tr><td>${escape(name)}</td><td>${view==='threshold' ? `Score &gt;= ${number(decision.threshold)}` : `Top ${decision.budget}`}</td><td>${decision.flagged}</td><td>${decision.true_positives}</td><td>${decision.false_positives}</td><td>${decision.false_negatives}</td><td>${percent(decision.precision)}</td><td>${percent(decision.recall)}</td></tr>`;
-    }).join('');
-    const metrics=entries.map(([name,row]) => `<tr><td>${escape(name)}</td><td>${number(row.metrics.average_precision)}</td><td>${number(row.metrics.roc_auc)}</td><td>${number(row.metrics.brier_score)}</td><td>${number(row.metrics.log_loss)}</td><td>${number(row.threshold_result?.assumed_total_cost,2)}</td></tr>`).join('');
-    const notes=[];
-    entries.forEach(([name,row]) => {
-      (row.warnings||[]).forEach(note => notes.push(`${name}: ${note}`));
-      row.review_budget_results.forEach(result => { if (result.boundary_tie) { const tie=result.boundary_tie;notes.push(`${name}, top ${result.budget}: tied scores can yield ${tie.true_positives_min} to ${tie.true_positives_max} positives found, depending on which tied cases are selected. These are allocation bounds, not confidence intervals.`); } });
-    });
-    const provenance=report.task.evaluation_role==='test' && report.execution_mode==='fresh_training'
-      ? 'Fresh fit with separate training, validation and test partitions. Thresholds were chosen using validation labels only.'
-      : 'Saved predictions. Class orientation and training provenance are supplied by the user, not independently verified.';
-    let execution='';
-    if (report.execution) {
-      execution=`<div class="result-card"><h3>Execution record</h3><div class="table-wrap"><table><thead><tr><th>Model</th><th>Status</th><th>Fit seconds</th><th>Process peak MB</th></tr></thead><tbody>${Object.entries(report.execution).map(([name,e]) => `<tr><td>${escape(name)}</td><td>${escape(e.status)}</td><td>${number(e.fit_seconds,2)}</td><td>${e.peak_process_rss_bytes==null?'Unavailable':number(e.peak_process_rss_bytes/1048576,1)}</td></tr>`).join('')}</tbody></table></div><p class="table-note">Process memory includes the interpreter and libraries. Workers use one computational thread.</p></div>`;
+  const saveText = (text, name, type) => saveBlob(new Blob([text], { type }), name);
+  const tools = F.tools.attach({ api, save: saveText, announce: say });
+
+  /* ---------- Overview and example ---------- */
+  const FICTIONAL = window.ERF_EXAMPLES;
+  const ex = { id: null, picked: false, budget: 2, threshold: 0.5, view: 'budget' };
+  function fictionalReport(item, budget, threshold) {
+    const parsed = M.fromCSV(item.csv, 'outcome', ['baseline', 'candidate']);
+    return { report: M.evaluate(parsed.labels, parsed.scores, { positiveLabel: 'event', negativeLabel: 'clear', scoreKind: 'probability', reviewBudgets: [budget], threshold, description: item.description }), rows: parsed.labels.length };
+  }
+  function exampleList() {
+    const list = [{ id: 'recorded', title: 'Recorded app run', provenance: 'recorded_app_run', available: !!env.recorded,
+      description: env.recorded ? ((env.recorded.example && env.recorded.example.description) || 'A real run of this app on a seeded synthetic table: several models on the same held-out test cases, with validation-selected thresholds.') : 'Not available in this copy of the page. It is loaded from recorded-example.json when the page is served over http.' }];
+    FICTIONAL.forEach(item => list.push({ id: item.id, title: item.title, provenance: 'fictional_fixture', description: item.description }));
+    return list;
+  }
+  function renderExample() {
+    const root = $('example-root');
+    if (!root) return;
+    const list = exampleList();
+    if (!ex.picked || !list.some(e => e.id === ex.id && e.available !== false)) ex.id = list[0].available === false ? FICTIONAL[0].id : 'recorded';
+    const chosen = list.find(e => e.id === ex.id);
+    const fictional = ex.id !== 'recorded';
+    const links = `<p class="link-row"><a href="${esc(C.SOURCE_URL)}" rel="noreferrer">Code and saved results</a><a href="#/how" data-action="route" data-route="how">Method</a><a href="#/research" data-action="route" data-route="research">Research evidence</a>${!fictional && env.recorded ? '<a href="recorded-example.html">Open the standalone report page</a>' : ''}</p>`;
+    const controls = fictional ? `<div class="card example-controls"><div class="field"><label for="review-budget">Cases you can review: <span id="budget-label">${esc(ex.budget)}</span></label><input id="review-budget" type="range" min="0" max="10" value="${esc(ex.budget)}" aria-describedby="budget-hint"><p class="hint" id="budget-hint">A count of cases, not a false-positive rate.</p></div><div class="field"><label for="example-threshold">Exploratory threshold: <span id="threshold-label">${esc(ex.threshold.toFixed(2))}</span></label><input id="example-threshold" type="range" min="0" max="1" step="0.01" value="${esc(ex.threshold)}" aria-describedby="threshold-hint"><p class="hint" id="threshold-hint">Changing this after looking at outcomes is exploration. A final threshold needs independent validation.</p></div><div class="field"><label for="decision-view">Decision shown in the table</label><select id="decision-view"><option value="budget"${ex.view === 'budget' ? ' selected' : ''}>Review budget</option><option value="threshold"${ex.view === 'threshold' ? ' selected' : ''}>Fixed threshold</option></select></div></div>` : '';
+    root.innerHTML = `<p class="section-intro">Read a complete report without uploading anything or waiting for a model. Each example says what it is.</p>${V.renderExampleChooser(list, ex.id)}${!fictional && env.recorded ? V.renderRecordedInfo(env.recorded.example) : ''}${controls}<div id="example-report" aria-label="${esc(chosen.title)}"></div>${links}<aside class="privacy" aria-label="Privacy in this mode"><h3>Privacy</h3><p>${esc(C.PRIVACY.example)}</p></aside>`;
+    renderExampleReport();
+  }
+  function renderExampleReport() {
+    const holder = $('example-report');
+    if (!holder) return;
+    if (ex.id === 'recorded') { holder.innerHTML = env.recorded ? RV.renderTrainingReport(env.recorded, { provenance: 'recorded_app_run', idPrefix: 'ex', headingLevel: 3 }) : ''; return; }
+    const item = FICTIONAL.find(e => e.id === ex.id), r = fictionalReport(item, ex.budget, ex.threshold);
+    const range = $('review-budget');
+    if (range) { range.max = String(r.rows); if (ex.budget > r.rows) { ex.budget = r.rows; range.value = String(r.rows); } }
+    $('budget-label') && ($('budget-label').textContent = String(ex.budget));
+    $('threshold-label') && ($('threshold-label').textContent = ex.threshold.toFixed(2));
+    holder.innerHTML = RV.renderPredictionReport(r.report, { provenance: 'fictional_fixture', view: ex.view, idPrefix: 'ex' });
+  }
+  document.addEventListener('change', event => {
+    const t = event.target;
+    if (t.matches && t.matches('[data-action="pick-example"]')) { ex.id = t.value; ex.picked = true; renderExample(); }
+    if (t.id === 'decision-view') { ex.view = t.value; renderExampleReport(); }
+  });
+  document.addEventListener('input', event => {
+    const t = event.target;
+    if (t.id === 'review-budget') { ex.budget = +t.value; renderExampleReport(); }
+    if (t.id === 'example-threshold') { ex.threshold = +t.value; renderExampleReport(); }
+  });
+  function renderOverview() {
+    const first = FICTIONAL[0];
+    const preview = env.recorded ? RV.renderPreview(env.recorded, { provenance: 'recorded_app_run' }) : RV.renderPreview(fictionalReport(first, 2, 0.5).report, { provenance: 'fictional_fixture' });
+    $('panel-overview').innerHTML = V.renderOverview({ hosted: env.hosted, preview });
+    renderExample();
+  }
+
+  /* ---------- Analyze: hosted flow ---------- */
+  let lastStep = flow.getState().step, lastErrorsVersion = 0, lastStatusVersion = 0, lastFocusN = 0, lastRunKey = '', analyzeInit = false, localInit = false;
+  function renderAnalyzePanel() {
+    const root = $('analyze-root');
+    if (!env.detected) { root.innerHTML = '<p class="muted">Checking what this page can connect to.</p>'; return; }
+    if (env.mode === 'hosted') {
+      if (!analyzeInit) { analyzeInit = true; flow.loadSamples(); }
+      drawFlow(true);
+    } else if (env.mode === 'local') { if (!localInit) { localInit = true; root.innerHTML = localTrainingHtml(); } }
+    else root.innerHTML = V.renderAnalyzeUnavailable();
+  }
+  function drawFlow(force) {
+    const st = flow.getState(), root = $('analyze-root');
+    if (env.mode !== 'hosted' || !root || $('panel-analyze').hidden) { return; }
+    const key = [st.step, st.run.phase, st.errorsVersion, st.data.phase, !!st.result, st.ui.confirmDelete, st.run.contactLost, st.samples.phase, st.run.state].join('|');
+    if (!force && st.step === 'run' && key === lastRunKey && $('run-live')) { $('run-live').innerHTML = V.renderRunLive(st); return; }
+    lastRunKey = key;
+    if (force) { lastStep = st.step; lastErrorsVersion = st.errorsVersion; lastFocusN = st.focus.n; }
+    const active = document.activeElement, activeId = active && root.contains(active) ? active.id : '';
+    root.innerHTML = V.renderAnalyze(st, flow);
+    if (st.errors.length && st.errorsVersion !== lastErrorsVersion && $('error-summary')) { $('error-summary').focus(); }
+    else if (st.focus.n !== lastFocusN && st.focus.id && $(st.focus.id)) { $(st.focus.id).focus(); }
+    else if (st.step !== lastStep && $('step-heading')) { $('step-heading').focus({ preventScroll: false }); }
+    else if (activeId && $(activeId)) { $(activeId).focus({ preventScroll: true }); }
+    lastStep = st.step; lastErrorsVersion = st.errorsVersion; lastFocusN = st.focus.n;
+  }
+  flow.subscribe(st => {
+    if (st.statusVersion !== lastStatusVersion) { lastStatusVersion = st.statusVersion; say(st.status); }
+    drawFlow(false);
+  });
+  async function startDownload(kind) {
+    const out = $('download-status');
+    if (out) out.textContent = 'Preparing the download.';
+    try {
+      const { blob, name } = await flow.download(kind);
+      saveBlob(blob, name);
+      if ($('download-status')) $('download-status').textContent = U.markBidi(`Saved ${name}.`);
+    } catch (e) {
+      const text = e && e.code === 'EXPORT_UNKNOWN' ? 'This service does not offer that download.' : F.flow.describeError(e) || 'The download did not work.';
+      if ($('download-status')) $('download-status').textContent = text;
     }
-    return `<div class="stats"><div class="stat"><span>Evaluated cases</span><strong>${data.rows}</strong></div><div class="stat"><span>Positive cases</span><strong>${data.positive_rows}</strong></div><div class="stat"><span>Positive prevalence</span><strong>${percent(data.positive_prevalence)}</strong></div></div>
-      <div class="result-card"><h3>Ranking quality</h3><div class="bars">${bars}</div><p class="table-note">Average precision, on the same cases. This is not a significance test or an automatic model recommendation.</p></div>
-      <div class="result-card"><h3>${view==='threshold'?'Threshold decisions':'What fits the review budget?'}</h3><div class="table-wrap"><table><thead><tr><th>Model</th><th>Policy</th><th>Flagged</th><th>Found</th><th>False alarms</th><th>Missed</th><th>Precision</th><th>Recall</th></tr></thead><tbody>${rows}</tbody></table></div><p class="table-note">Positive: <strong>${escape(report.task.positive_label)}</strong>. Negative: <strong>${escape(report.task.negative_label)}</strong>. Top-k score ties use original row order.</p></div>
-      <div class="result-card"><h3>Additional metrics and cost assumptions</h3><div class="table-wrap"><table><thead><tr><th>Model</th><th>AP</th><th>ROC AUC</th><th>Brier</th><th>Log loss</th><th>Threshold cost</th></tr></thead><tbody>${metrics}</tbody></table></div><p class="table-note">Cost is shown only when explicit assumptions are supplied. Brier score and log loss are unavailable for ranking scores. Reliability bins are included in the JSON.</p></div>
-      ${notes.length?`<div class="result-card warnings"><h3>Read before deciding</h3><ul>${[...new Set(notes)].map(note=>`<li>${escape(note)}</li>`).join('')}</ul></div>`:''}
-      <div class="result-card"><h3>What the report establishes</h3><p class="table-note">${escape(provenance)}</p><div class="check-grid"><div><strong>Label and score checks</strong>Performed</div><div><strong>Training leakage</strong><span class="not-checked">${escape(statusText(report.checks.training_leakage))}</span></div><div><strong>Row / split overlap</strong>${escape(statusText(report.checks.train_test_overlap))}</div><div><strong>Uncertainty</strong>${escape(statusText(report.checks.uncertainty))}</div></div><p class="table-note">${escape(report.data.description||'')} ${escape(report.policies.selection)}</p></div>${execution}
-      ${downloads?'<div class="button-row"><button type="button" class="download" data-download="json">Download JSON</button><button type="button" class="download" data-download="html">Download report</button></div>':''}`;
   }
-  function render(report,container,view='budget') {
-    container.innerHTML=reportHTML(report,view);
-    container.querySelector('[data-download=json]').onclick=() => download(JSON.stringify(report,null,2),'rare-event-report.json','application/json');
-    container.querySelector('[data-download=html]').onclick=() => {
-      const style='body{font-family:system-ui,sans-serif;max-width:1050px;margin:32px auto;padding:20px;color:#1d302d}table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;border-bottom:1px solid #ddd}.result-card{border:1px solid #ddd;border-radius:8px;padding:20px;margin:18px 0}.stats,.check-grid{display:flex;gap:20px;flex-wrap:wrap}.stat{padding:10px}.stat span{display:block}.stat strong{font-size:1.8rem}.bar-row{display:grid;grid-template-columns:150px 1fr 50px;gap:12px;margin:10px 0}.bar-track{fill:#eee}.bar-fill{fill:#245c4c}.table-wrap{overflow:auto}.table-note{font-size:.85rem;color:#62716a}';
-      download(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Evaluation report</title><style>${style}</style></head><body><h1>Rare-event evaluation</h1><p>Sherwan Ali | ${escape(report.tool.name)} ${escape(report.tool.version)}</p>${reportHTML(report,view,false)}<h2>Limitations</h2><ul>${report.limitations.map(note=>`<li>${escape(note)}</li>`).join('')}</ul></body></html>`,'rare-event-report.html','text/html');
-    };
+  document.addEventListener('click', event => {
+    const el = event.target.closest('#analyze-root [data-action]');
+    if (!el || env.mode !== 'hosted') return;
+    const a = el.dataset.action;
+    if (a === 'focus-field') {
+      event.preventDefault();
+      const id = el.dataset.field;
+      const target = $(id) || document.querySelector(`#${CSS.escape(id)} input, [name="${CSS.escape(id)}"]`) || $('step-heading');
+      if (target) { target.focus(); target.scrollIntoView({ block: 'center' }); }
+      return;
+    }
+    if (a === 'upload') flow.uploadSelected();
+    else if (a === 'retry-samples') flow.retrySamples();
+    else if (a === 'next') flow.next();
+    else if (a === 'back') flow.back();
+    else if (a === 'goto') flow.goTo(el.dataset.step);
+    else if (a === 'start') flow.startRun();
+    else if (a === 'cancel') flow.cancel();
+    else if (a === 'recheck') flow.recheck();
+    else if (a === 'settings') flow.backToSettings();
+    else if (a === 'goto-data') flow.goTo('data');
+    else if (a === 'download') startDownload(el.dataset.kind);
+    else if (a === 'delete-ask') flow.setConfirmDelete(true);
+    else if (a === 'delete-cancel') flow.setConfirmDelete(false);
+    else if (a === 'delete-confirm') flow.discardDataset();
+  });
+  document.addEventListener('change', event => {
+    const el = event.target;
+    if (!el.closest || !el.closest('#analyze-root') || env.mode !== 'hosted') return;
+    const a = el.dataset && el.dataset.action;
+    if (el.id === 'file-input') { if (el.files && el.files[0]) flow.selectFile(el.files[0]); return; }
+    if (a === 'pick-sample') flow.selectSample(el.value);
+    else if (a === 'set-target') flow.setTargetColumn(el.value);
+    else if (el.id === 'positive-label' && el.tagName === 'SELECT') flow.setPositive(el.value);
+    else if (a === 'set-ovr') flow.setField('target', 'oneVsRest', el.checked);
+    else if (a === 'set-role') flow.setColumnRole(el.dataset.column, el.value);
+    else if (a === 'set-split') flow.setSplitMode(el.value);
+    else if (a === 'set-missing') flow.setField('target', 'missingPolicy', el.value);
+    else if (a === 'confirm-target') flow.setField('target', 'confirmed', el.checked);
+    else if (a === 'toggle-model') flow.toggleModel(el.value, el.checked);
+    else if (a === 'set-calibration') flow.setField('models', 'calibration', el.value);
+    else if (el.id === 'group-column') flow.setField('target', 'groupColumn', el.value);
+    else if (el.id === 'time-column') flow.setField('target', 'timeColumn', el.value);
+  });
+  document.addEventListener('input', event => {
+    const el = event.target;
+    if (!el.closest || !el.closest('#analyze-root') || env.mode !== 'hosted') return;
+    const resetConfirm = () => { const c = $('confirm-target'); if (c) c.checked = false; };
+    if (el.id === 'positive-label' && el.tagName === 'INPUT') { flow.setField('target', 'positive', el.value, true); resetConfirm(); }
+    else if (el.id === 'negative-label') { flow.setField('target', 'negative', el.value, true); resetConfirm(); }
+    else if (el.id === 'seed') { flow.setField('target', 'seed', el.value, true); resetConfirm(); }
+    else if (el.id === 'review-budgets') flow.setField('models', 'reviewPercents', el.value, true);
+    else if (el.dataset && el.dataset.action === 'set-cost') flow.setCost(el.dataset.key, el.value);
+  });
+  document.addEventListener('dragover', event => { const z = event.target.closest && event.target.closest('#dropzone'); if (z) { event.preventDefault(); z.classList.add('is-over'); } });
+  document.addEventListener('dragleave', event => { const z = event.target.closest && event.target.closest('#dropzone'); if (z) z.classList.remove('is-over'); });
+  document.addEventListener('drop', event => {
+    const z = event.target.closest && event.target.closest('#dropzone');
+    if (!z) return;
+    event.preventDefault(); z.classList.remove('is-over');
+    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file) flow.selectFile(file);
+  });
+
+  /* ---------- Analyze: standalone local server (the older numeric-only form) ---------- */
+  const local = { csv: '', headers: [] };
+  function localTrainingHtml() {
+    const models = MODELS.map(m => `<div class="check-row"><input type="checkbox" id="local-model-${esc(m.id)}" name="local-model" value="${esc(m.id)}"${['logistic', 'rf_weighted'].includes(m.id) ? ' checked' : ''}><label for="local-model-${esc(m.id)}">${esc(m.name)}</label></div>`).join('');
+    const splits = C.SPLIT_MODES.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    return `<section aria-labelledby="local-heading"><h2 id="local-heading" tabindex="-1">Analyze a dataset on this machine</h2><p class="section-intro">The local Python workbench is connected. Training uses the installed package and your CSV stays on this computer. Features must be numeric. Each model has a 60-second worker limit and only one training request runs at a time.</p>
+      <div class="workspace"><form id="local-form" class="card" novalidate><div class="field"><label for="local-file">Numeric-feature CSV</label><input id="local-file" type="file" accept=".csv,text/csv"></div><button type="button" class="btn" id="local-example">Load fictional training cases</button><p class="hint" id="local-note">The fictional training cases are for software demonstration; they are not a real case study.</p>
+      <div class="field"><label for="local-target">Target column</label><select id="local-target"><option value="">Load a file first</option></select></div><div class="field"><label for="local-positive">Positive label</label><input id="local-positive" type="text"></div><div class="field"><label for="local-negative">Negative label</label><input id="local-negative" type="text"></div>
+      <div class="field"><label for="local-split">Generalization question</label><select id="local-split">${splits}</select></div><div class="field"><label for="local-group">Group column, if applicable</label><select id="local-group"><option value="">None</option></select></div><div class="field"><label for="local-time">Time column, if applicable</label><select id="local-time"><option value="">None</option></select></div>
+      <fieldset><legend>Models</legend>${models}</fieldset><div class="field"><label for="local-calibration">Probability calibration</label><select id="local-calibration"><option value="none">None</option><option value="sigmoid">Sigmoid, training-only cross-validation</option></select></div>
+      <button type="submit" class="btn btn-primary" id="local-run">Run local comparison</button><p id="local-status" class="status-line" role="status"></p></form><div id="local-results" aria-live="polite"><div class="empty-state"><h3>A traceable fresh run</h3><p>Training-only preprocessing, validation-only threshold selection, explicit failures and an untouched test partition. Results appear here.</p></div></div></div>
+      <aside class="privacy" aria-label="Privacy in this mode"><h3>Privacy: local training</h3><p>The file is sent only to the Python process on your own machine at 127.0.0.1. Nothing is stored by it. The JSON download is built in your browser and holds no row-level data.</p></aside></section>`;
   }
-  function example() {
-    const item=window.ERF_EXAMPLES.find(value=>value.id===$('example-select').value), parsed=M.fromCSV(item.csv,'outcome',['baseline','candidate']);
-    $('example-description').textContent=item.description;
-    $('review-budget').max=parsed.labels.length;
-    if (+$('review-budget').value>parsed.labels.length) $('review-budget').value=parsed.labels.length;
-    $('budget-label').textContent=$('review-budget').value;$('threshold-label').textContent=(+$('example-threshold').value).toFixed(2);
-    render(M.evaluate(parsed.labels,parsed.scores,{positiveLabel:'event',negativeLabel:'clear',scoreKind:'probability',
-      reviewBudgets:[+$('review-budget').value],threshold:+$('example-threshold').value,description:item.description}),$('example-results'),$('decision-view').value);
+  function localLoad(csv, fictional) {
+    const parsed = M.parseCSV(csv); local.csv = csv; local.headers = parsed.headers;
+    const opts = (blank) => (blank ? '<option value="">None</option>' : '') + parsed.headers.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+    $('local-target').innerHTML = opts(false); $('local-group').innerHTML = opts(true); $('local-time').innerHTML = opts(true);
+    if (fictional) { $('local-target').value = 'outcome'; $('local-positive').value = 'event'; $('local-negative').value = 'clear'; } else { $('local-positive').value = ''; $('local-negative').value = ''; }
+    $('local-note').textContent = `${parsed.rows.length} rows loaded. ${fictional ? 'Fictional teaching data.' : 'Confirm which columns are available at prediction time.'}`;
   }
-  $('example-select').innerHTML=window.ERF_EXAMPLES.map(item=>`<option value="${item.id}">${escape(item.title)}</option>`).join('');
-  ['example-select','review-budget','example-threshold','decision-view'].forEach(id=>$(id).addEventListener('input',example));
-  example();
-  function options(select,headers,blank=false) { select.innerHTML=(blank?'<option value="">None</option>':'')+headers.map(name=>`<option value="${escape(name)}">${escape(name)}</option>`).join(''); }
+  document.addEventListener('click', event => {
+    if (event.target.id === 'local-example') localLoad(window.ERF_TRAINING_CSV, true);
+  });
+  document.addEventListener('change', async event => {
+    if (event.target.id !== 'local-file') return;
+    const file = event.target.files[0]; if (!file) return;
+    try { if (file.size > 2000000) throw Error('Please use a CSV under 2 MB in the workbench, or use the command line.'); localLoad(await file.text(), false); } catch (e) { $('local-status').textContent = e.message; }
+  });
+  document.addEventListener('submit', async event => {
+    if (event.target.id !== 'local-form') return;
+    event.preventDefault();
+    const status = $('local-status'), button = $('local-run');
+    if (!local.csv) { status.textContent = 'Load a training CSV first.'; return; }
+    const models = [...document.querySelectorAll('input[name=local-model]:checked')].map(i => i.value);
+    if (!models.length || models.length > 5) { status.textContent = 'Choose one to five models.'; return; }
+    button.disabled = true; status.textContent = 'Running bounded workers on this machine. A model may take up to 60 seconds.';
+    try {
+      const data = await api.trainLocal({ csv: local.csv, target: $('local-target').value, positive_label: $('local-positive').value, negative_label: $('local-negative').value, models, split_mode: $('local-split').value, group_column: $('local-group').value || null, time_column: $('local-time').value || null, calibration: $('local-calibration').value, data_description: 'User-supplied numeric training data; provenance is not independently verified.' });
+      $('local-results').innerHTML = RV.renderTrainingReport(data, { provenance: 'fresh_app_run', idPrefix: 'loc' }) + `<div class="actions"><button type="button" class="btn" id="local-json">Download report (JSON)</button></div><p class="hint">${esc(C.NO_ROW_DATA)}</p>`;
+      $('local-json').onclick = () => saveText(JSON.stringify({ ...data, provenance: 'fresh app run' }, null, 2), U.downloadName('report_json', 'local-training', new Date().toISOString()), 'application/json');
+      status.textContent = 'Finished. Inspect the validation-selected policies, the held-out results and any model failures.';
+    } catch (e) { status.textContent = U.markBidi(e.message); } finally { button.disabled = false; }
+  });
+
+  /* ---------- Evaluate predictions: browser only ---------- */
+  const pred = { csv: '', name: '', last: null, view: 'budget' };
+  const PRED_NOTE = 'Computed in this browser from the predictions you supplied. How they were produced is not known to this app.';
+  function predOptions(headers) { $('prediction-label').innerHTML = headers.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join(''); }
   function scoreChoices() {
-    const headers=M.parseCSV(predictionCSV).headers;
-    $('score-columns').innerHTML=headers.filter(name=>name!==$('prediction-label').value).map(name=>`<label><input type="checkbox" value="${escape(name)}">${escape(name)}</label>`).join('');
+    const headers = M.parseCSV(pred.csv).headers;
+    $('score-columns').innerHTML = headers.filter(h => h !== $('prediction-label').value).map((h, i) => `<div class="check-row"><input type="checkbox" id="score-${i}" value="${esc(h)}"><label for="score-${i}">${esc(h)}</label></div>`).join('');
   }
-  function loadPrediction(csv,fictional=false) {
-    const parsed=M.parseCSV(csv);predictionCSV=csv;options($('prediction-label'),parsed.headers);scoreChoices();
-    $('prediction-positive').value=fictional?'event':'';$('prediction-negative').value=fictional?'clear':'';
-    if (fictional) $('score-columns').querySelectorAll('input').forEach(input=>{input.checked=true;});
-    $('prediction-status').textContent=`Loaded ${parsed.rows.length} rows. Confirm labels, score columns and score direction.`;
+  function loadPrediction(csv, name, fictional) {
+    const parsed = M.parseCSV(csv); pred.csv = csv; pred.name = name; predOptions(parsed.headers); scoreChoices();
+    $('prediction-positive').value = fictional ? 'event' : ''; $('prediction-negative').value = fictional ? 'clear' : '';
+    if (fictional) { $('prediction-label').value = 'outcome'; scoreChoices(); $('score-columns').querySelectorAll('input').forEach(i => { i.checked = true; }); }
+    $('prediction-status').textContent = U.markBidi(`Loaded ${parsed.rows.length} rows from ${name}. Confirm the labels, the score columns and the score direction.`);
+    $('prediction-errors').innerHTML = '';
   }
-  $('prediction-label').addEventListener('change',scoreChoices);
-  $('use-prediction-example').onclick=()=>loadPrediction(window.ERF_EXAMPLES[0].csv,true);
-  async function readFile(input) { const file=input.files[0];if(!file)return null;if(file.size>2_000_000)throw Error('Please use a CSV under 2 MB in the workbench, or use the CLI.');return file.text(); }
-  $('prediction-file').onchange=async()=>{try{const text=await readFile($('prediction-file'));if(text!==null)loadPrediction(text);}catch(error){$('prediction-status').textContent=error.message;}};
-  function costs() {
-    const fp=$('cost-fp').value,fn=$('cost-fn').value,review=+$('cost-review').value;
-    if (!fp && !fn && review===0) return null;
-    if (fp==='' || fn==='') throw Error('Supply both error costs, or leave both blank.');
-    return {false_positive_cost:+fp,false_negative_cost:+fn,review_cost:review};
+  function showPredictionErrors(errors) {
+    $('prediction-errors').innerHTML = V.errorSummary({ errors });
+    const summary = $('error-summary'); if (summary) summary.focus();
+    $('prediction-results').innerHTML = '<div class="empty-state"><h3>Input needs attention</h3><p>The previous result is cleared. Correct the items listed above and evaluate again.</p></div>';
+    $('prediction-status').textContent = `${errors.length} ${errors.length === 1 ? 'problem needs' : 'problems need'} attention.`;
   }
-  async function post(path,body) { const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw Error(data.error||'Local request failed.');return data; }
-  $('prediction-form').onsubmit=async event=>{
-    event.preventDefault();$('prediction-status').textContent='Evaluating...';
-    try {
-      if(!predictionCSV)throw Error('Load a CSV first.');
-      const columns=[...$('score-columns').querySelectorAll('input:checked')].map(input=>input.value);
-      const configuration={positiveLabel:$('prediction-positive').value,negativeLabel:$('prediction-negative').value,scoreKind:$('score-kind').value,
-        threshold:$('prediction-threshold').value===''?null:+$('prediction-threshold').value,reviewBudgets:[+$('prediction-budget').value],costs:costs(),description:'User-supplied predictions. Training provenance has not been verified.'};
-      let report;
-      if (backend) report=await post('/api/evaluate',{csv:predictionCSV,label_column:$('prediction-label').value,score_columns:columns,
-        positive_label:configuration.positiveLabel,negative_label:configuration.negativeLabel,score_kind:configuration.scoreKind,threshold:configuration.threshold,
-        review_budgets:configuration.reviewBudgets,costs:configuration.costs});
-      else {const parsed=M.fromCSV(predictionCSV,$('prediction-label').value,columns);report=M.evaluate(parsed.labels,parsed.scores,configuration);}
-      render(report,$('prediction-results'));$('prediction-status').textContent=backend?'Evaluated by the local Python core. Uploaded rows were not stored.':'Evaluated in your browser. No CSV was sent to a server.';
-    }catch(error){$('prediction-status').textContent=error.message;$('prediction-results').innerHTML='<div class="empty-state"><h3>Input needs attention</h3><p>The previous result is cleared. Correct the issue shown beside the form and evaluate again.</p></div>';}
-  };
-  function loadTraining(csv,fictional=false) {
-    const parsed=M.parseCSV(csv);trainingCSV=csv;options($('training-target'),parsed.headers);options($('training-group'),parsed.headers,true);options($('training-time'),parsed.headers,true);
-    trainingDescription=fictional?'Fictional training cases generated for software demonstration; not a real-world case study.':'User-supplied numeric training data; provenance is not independently verified.';
-    if(fictional){$('training-target').value='outcome';$('training-positive').value='event';$('training-negative').value='clear';}
-    else {$('training-positive').value='';$('training-negative').value='';}
-    $('training-file-note').textContent=`${parsed.rows.length} rows loaded. ${fictional?'Fictional teaching data.':'Confirm which columns are available at prediction time.'}`;
+  function drawPrediction() {
+    const r = pred.last; if (!r) return;
+    $('prediction-results').innerHTML = `<div class="actions"><label for="prediction-view" class="visually-hidden">Decision shown</label><select id="prediction-view"><option value="budget"${pred.view === 'budget' ? ' selected' : ''}>Decision shown: review budget</option><option value="threshold"${pred.view === 'threshold' ? ' selected' : ''}>Decision shown: fixed threshold</option></select></div>` +
+      RV.renderPredictionReport(r, { provenance: 'fresh_app_run', provenanceNote: PRED_NOTE, view: pred.view, idPrefix: 'pr', cannotCertify: P.CANNOT_CERTIFY }) +
+      `<div class="card"><h3>Downloads</h3><p>${esc(C.NO_ROW_DATA)}</p><div class="actions"><button type="button" class="btn" id="pred-json">Download report (JSON)</button><button type="button" class="btn" id="pred-html">Download report (HTML)</button></div></div>`;
   }
-  $('use-training-example').onclick=()=>loadTraining(window.ERF_TRAINING_CSV,true);
-  $('training-file').onchange=async()=>{try{const text=await readFile($('training-file'));if(text!==null)loadTraining(text);}catch(error){$('training-status').textContent=error.message;}};
-  function combineTraining(result) {
-    const successes=Object.entries(result.outcomes).filter(([,row])=>row.status==='success');
-    if(!successes.length)throw Error('No successful fit. '+Object.entries(result.outcomes).map(([name,row])=>`${name}: ${row.status}, ${row.error||'worker limit reached'}`).join('; '));
-    const report=JSON.parse(JSON.stringify(successes[0][1].report));report.models=Object.create(null);report.execution=Object.create(null);
-    successes.forEach(([name,row])=>{report.models[name]=row.report.models[name];});
-    Object.entries(result.outcomes).forEach(([name,row])=>{report.execution[name]={status:row.status,fit_seconds:row.execution?.fit_seconds,peak_process_rss_bytes:row.execution?.peak_process_rss_bytes};if(row.status!=='success')report.limitations.push(`${name}: ${row.status}, ${row.error||'worker limit reached'}`);});
-    report.policies.selection='Per-model thresholds chosen on validation data only. Test labels excluded from selection.';report.policies.threshold=null;return report;
+  $('use-prediction-example').addEventListener('click', () => loadPrediction(FICTIONAL[0].csv, 'the fictional example', true));
+  $('prediction-label').addEventListener('change', () => { if (pred.csv) scoreChoices(); });
+  $('prediction-file').addEventListener('change', async () => {
+    const file = $('prediction-file').files[0]; if (!file) return;
+    try { if (file.size > P.MAX_BYTES) throw Error('Please use a CSV under 2 MB in the workbench, or use the command line.'); loadPrediction(await file.text(), file.name, false); }
+    catch (e) { showPredictionErrors([{ field: 'prediction-file', message: e.message }]); }
+  });
+  $('prediction-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const form = { labelColumn: $('prediction-label').value, positiveLabel: $('prediction-positive').value, negativeLabel: $('prediction-negative').value,
+      scoreColumns: [...$('score-columns').querySelectorAll('input:checked')].map(i => i.value), scoreKind: $('score-kind').value, threshold: $('prediction-threshold').value,
+      budget: $('prediction-budget').value, costs: { fp: $('cost-fp').value, fn: $('cost-fn').value, review: $('cost-review').value } };
+    const out = P.evaluateSaved(pred.csv, form);
+    if (out.errors) { showPredictionErrors(out.errors); return; }
+    pred.last = out.report; $('prediction-errors').innerHTML = ''; drawPrediction();
+    $('prediction-status').textContent = 'Evaluated in your browser. No CSV was sent to a server. The report is below.';
+  });
+  document.addEventListener('change', event => { if (event.target.id === 'prediction-view') { pred.view = event.target.value; drawPrediction(); const s = $('prediction-view'); if (s) s.focus(); } });
+  document.addEventListener('click', event => {
+    const id = event.target.id;
+    if ((id === 'pred-json' || id === 'pred-html') && pred.last) {
+      const date = pred.last.created_utc;
+      if (id === 'pred-json') saveText(P.reportJson(pred.last, C.PROVENANCE.fresh_app_run.label), U.downloadName('report_json', pred.name === 'the fictional example' ? 'fictional-predictions' : pred.name, date), 'application/json');
+      else saveText(RV.predictionReportDocument(pred.last, { provenance: 'fresh_app_run', provenanceNote: PRED_NOTE, view: pred.view, cannotCertify: P.CANNOT_CERTIFY }), U.downloadName('report_html', pred.name === 'the fictional example' ? 'fictional-predictions' : pred.name, date), 'text/html');
+    }
+  });
+
+  /* ---------- boot ---------- */
+  function setBadge(text) { $('runtime-badge').textContent = text; }
+  async function detect() {
+    const forced = new URLSearchParams(location.search).get('mode') === 'browser';
+    if (location.protocol === 'file:' || forced) { env.mode = 'static'; env.detected = true; setBadge('Browser only'); return; }
+    const hosted = await api.detectHosted();
+    if (hosted) {
+      env.mode = 'hosted'; env.hosted = true; env.version = hosted; flow.setVersion(hosted);
+      setBadge('Hosted analysis available'); $('classic-link').hidden = false;
+      const rel = hosted.release_id && hosted.release_id !== 'unknown' ? ` Release ${hosted.release_id}.` : '';
+      const fv = $('footer-version'); if (fv) fv.textContent = `Service app ${hosted.app_version || ''}, package ${hosted.package_version || ''}.${rel}`.replace(/\s+/g, ' ');
+      env.detected = true; return;
+    }
+    const localInfo = await api.detectLocal();
+    if (localInfo) { env.mode = 'local'; env.detected = true; setBadge('Local Python connected'); return; }
+    env.mode = 'static'; env.detected = true; setBadge('Browser only');
   }
-  $('training-form').onsubmit=async event=>{
-    event.preventDefault();if(!backend)return;
-    $('train-button').disabled=true;$('training-status').textContent='Running bounded workers on this machine. A model may take up to 60 seconds.';
-    try {
-      if(!trainingCSV)throw Error('Load a training CSV first.');
-      const models=[...document.querySelectorAll('input[name=model]:checked')].map(input=>input.value);
-      const result=await post('/api/train',{csv:trainingCSV,target:$('training-target').value,positive_label:$('training-positive').value,
-        negative_label:$('training-negative').value,models,split_mode:$('training-split').value,group_column:$('training-group').value||null,
-        time_column:$('training-time').value||null,calibration:$('training-calibration').value,data_description:trainingDescription});
-      render(combineTraining(result),$('training-results'),'threshold');$('training-status').textContent='Finished. Inspect validation-selected policies, held-out results and any model failures.';
-    }catch(error){$('training-status').textContent=error.message;}finally{$('train-button').disabled=!backend;}
-  };
-  function study() {
-    const data=window.ERF_STUDY;
-    if(!data){$('study-results').innerHTML='<div class="result-card reading"><h3>A new controlled pilot</h3><p>The study record is being prepared in this local development version. Historical claims are not substituted for a fresh result.</p></div>';return;}
-    const rows=data.family_comparisons.map(row=>`<tr><td>${escape(row.dataset)}</td><td>${number(row.erf.mean_ap)}</td><td>${number(row.balanced_rf.mean_ap)}</td><td>${number(row.rf_weighted_1000.mean_ap)}</td><td>${number(row.hist_gradient_boosting.mean_ap)}</td><td>${number(row.erf_minus_balanced_rf_ap)}</td></tr>`).join('');
-    $('study-results').innerHTML=`<div class="study-header"><div class="stat"><span>Dataset families</span><strong>5</strong></div><div class="stat"><span>Planned runs</span><strong>${data.planned_jobs}</strong></div><div class="stat"><span>Successful runs</span><strong>${data.status_counts.success||0}</strong></div></div><div class="result-card reading"><h3>Decision from the prespecified gate</h3><p>${escape(data.confirmation_gate.decision)}</p><p>Median ERF / balanced-forest fit-time ratio: <strong>${number(data.confirmation_gate.median_erf_to_balanced_rf_fit_ratio,1)}x</strong>. This is a computational comparison, not an estimate of business value.</p></div><div class="result-card"><h3>Within-family comparison</h3><div class="table-wrap"><table><thead><tr><th>Task</th><th>ERF AP</th><th>Balanced RF AP</th><th>1,000-tree RF AP</th><th>Gradient boosting AP</th><th>ERF - balanced RF</th></tr></thead><tbody>${rows}</tbody></table></div><p class="table-note">Each value is the mean of two predeclared stratified splits. Families have different prevalence; do not interpret cross-task average precision as one universal performance score. Group sensitivity results, failures and all ablations are in the local study files.</p></div><div class="result-card reading"><h3>Limits of this evidence</h3><ul>${data.limitations.map(note=>`<li>${escape(note)}</li>`).join('')}</ul><p class="mono">Study identity: ${escape(data.identity_sha256)}</p></div>`;
+  async function loadRecorded() {
+    // A derived copy of recorded-example.json in a script file, so the example also opens from a file: URL.
+    if (window.FYD_RECORDED_EXAMPLE && window.FYD_RECORDED_EXAMPLE.outcomes) { env.recorded = window.FYD_RECORDED_EXAMPLE; return; }
+    if (location.protocol === 'file:') return;
+    try { const data = await api.staticJson('recorded-example.json'); if (data && data.outcomes) env.recorded = data; } catch (_) { env.recorded = null; }
   }
-  study();
-  async function checkBackend(){
-    if(location.protocol==='file:' || new URLSearchParams(location.search).get('mode')==='browser')return;
-    try{const response=await fetch('/api/health',{signal:AbortSignal.timeout(2000)});if(!response.ok)return;const data=await response.json();if(data.mode!=='local')return;backend=true;$('runtime-badge').textContent='Local Python connected';$('training-mode').textContent='Training available locally';$('train-button').disabled=false;$('local-instructions').hidden=true;}catch(_){/* Static hosting intentionally has no API. */}
+  async function boot() {
+    $('panel-research').innerHTML = V.renderResearch(window.ERF_STUDY || null);
+    $('panel-how').innerHTML = V.renderHow();
+    const notes = V.renderPredictionNotes();
+    $('prediction-privacy').textContent = notes.privacy; $('prediction-cannot').textContent = notes.cannot;
+    renderOverview();
+    show(routeFromHash() || 'overview', { focus: false });
+    await Promise.all([detect(), loadRecorded()]);
+    renderOverview();
+    show(routeFromHash() || 'overview', { focus: false });
+    const classic = document.querySelector('[data-classic="1"]'); if (classic && !env.hosted) classic.removeAttribute('href');
   }
-  checkBackend();
+  window.FYD_BOOTED = true;
+  boot();
 })();

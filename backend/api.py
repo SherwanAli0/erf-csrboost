@@ -14,7 +14,10 @@ the whole process tree. This module only adapts HTTP to the coordinator: it owns
   POST   /api/v1/jobs                         GET    /api/v1/jobs/{id}        DELETE /api/v1/jobs/{id}
   GET    /api/v1/jobs/{id}/result             GET    /api/v1/jobs/{id}/exports/{kind}
 Health: GET and HEAD /healthz and /health. These handlers touch no lock and no disk.
-Legacy (unchanged request and response shapes): GET / /index.html /api/samples /api/sample /stats /stats/<key>
+Pages: GET and HEAD / and /index.html serve the workbench (evaluation/src/rare_event_eval/web/index.html); every
+other regular file of that folder is served at its own root path from an allowlist built at startup. /classic serves
+the old single page (frontend/index.html) exactly as / did before.
+Legacy (unchanged request and response shapes): GET /classic /api/samples /api/sample /stats /stats/<key>
 /whoami/<key>; POST /api/profile /api/analyze /api/score /api/convert.
 """
 from __future__ import annotations
@@ -54,8 +57,9 @@ from services.errors import ServiceError  # noqa: E402
 log = logging.getLogger("fyd.api")
 
 ROOT = HERE.parent
-INDEX = ROOT / "frontend" / "index.html"
+INDEX = ROOT / "frontend" / "index.html"     # the legacy page, served at /classic
 SAMPLES = ROOT / "samples"
+DEFAULT_WEB_DIR = ROOT / "evaluation" / "src" / "rare_event_eval" / "web"
 
 APP_VERSION = "2.0.0-dev"
 REPORT_SCHEMAS = {"training": "training-1.1", "profile": "app-profile-1.0", "job_config": "fyd-job-config-1.0"}
@@ -82,7 +86,7 @@ JOB_BODY_LIMIT = 128 * 1024
 SMALL_BODY_LIMIT = 64 * 1024
 STATE_CHANGING = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 HEAVY_POLL_SECONDS = 0.1
-NO_REFERRER_EXEMPT = ("/", "/index.html")
+NO_REFERRER_EXEMPT = ("/classic",)   # the old page keeps the headers it always had
 
 
 # ------------------------------------------------------------------------------------------ errors
@@ -163,6 +167,8 @@ def _request_id(request: Request) -> str:
 # ------------------------------------------------------------------------------------------ middleware
 
 def body_limit(method: str, path: str, config: JobConfig) -> int:
+    if method == "POST" and path.startswith("/api/v1/tools/"):
+        return min(config.upload_limit_bytes * 2 + 32768, 4_000_000)
     if method == "POST" and path == "/api/v1/datasets":
         return config.upload_limit_bytes
     if method == "POST" and path == "/api/v1/jobs":
@@ -412,7 +418,7 @@ def job_export(job_id: str, kind: str, request: Request):
                "Cache-Control": "no-store"}
     if content_type.startswith("application/json"):
         data = escape_json_bytes(data)
-    else:
+    elif content_type.startswith("text/html"):
         headers["Content-Security-Policy"] = ("default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; "
                                               "form-action 'none'; sandbox")
     return Response(content=data, headers=headers)
@@ -486,14 +492,118 @@ def _not_found() -> Response:
     return text_response("not found", "text/plain", 404)
 
 
-@router.api_route("/", methods=["GET", "HEAD"])
-@router.api_route("/index.html", methods=["GET", "HEAD"])
-def index_page(request: Request):
-    page = INDEX.read_text(encoding="utf-8")
+@router.api_route("/classic", methods=["GET", "HEAD"])
+def classic_page(request: Request):
+    """The old single page, the bytes of ``frontend/index.html`` as ``/`` served them before the workbench; same visit
+    logging (a visit for GET, none for HEAD)."""
+    page = INDEX.read_bytes()
+    headers = {"content-type": "text/html; charset=utf-8"}
     task = None
-    if request.method != "HEAD":   # uptime probes must not count as visits
+    if request.method == "HEAD":   # uptime probes must not count as visits
+        headers["content-length"] = str(len(page))
+        page = b""
+    else:
         task = BackgroundTask(record_event, request, "visit")
-    return text_response(page, "text/html; charset=utf-8", background=task)
+    return Response(content=page, headers=headers, background=task)
+
+
+# ------------------------------------------------------------------------------------------ the workbench files
+
+WEB_CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+    ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon",
+    ".txt": "text/plain; charset=utf-8",
+}
+WEB_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+MAX_WEB_FILE_BYTES = 8 * 1024 * 1024
+WEB_ASSET_CACHE = "public, max-age=300"
+# Report pages and images are documents, never applications: no script, no network, no framing.
+DOCUMENT_CSP = ("default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; "
+                "form-action 'none'; sandbox")
+# The workbench index: scripts and styles only from this origin, no inline code, no framing, no form posts.
+WORKBENCH_CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
+                 "font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+WEB_UNAVAILABLE = "The web interface files are not installed with this service."
+
+
+def web_directory() -> Path:
+    """``FYD_WEB_DIR`` if set (tests), else the package's ``web`` folder next to this repository's ``backend``."""
+    override = os.environ.get("FYD_WEB_DIR", "").strip()
+    return Path(override) if override else DEFAULT_WEB_DIR
+
+
+def build_web_assets(directory: Path) -> dict:
+    """``{file name: (path, content type)}`` for the regular files directly inside ``directory``.
+
+    Built once at startup and never extended by a request, so the URL can only select a name from this table: no
+    path is ever joined from a request. A file qualifies when it is a regular file (not a link), its name is plain
+    (letters, digits, dot, dash and underscore, no leading dot), its extension has a fixed content type and it is not
+    larger than 8 MB. Subfolders, hidden files and every other name are not served.
+    """
+    assets: dict = {}
+    try:
+        entries = sorted(os.scandir(directory), key=lambda item: item.name)
+    except OSError:
+        return assets
+    for entry in entries:
+        try:
+            if not entry.is_file(follow_symlinks=False) or not WEB_NAME.match(entry.name):
+                continue
+            content_type = WEB_CONTENT_TYPES.get(os.path.splitext(entry.name)[1].lower())
+            if content_type is None or entry.stat(follow_symlinks=False).st_size > MAX_WEB_FILE_BYTES:
+                continue
+        except OSError:
+            continue
+        assets[entry.name] = (Path(entry.path), content_type)
+    return assets
+
+
+def web_response(request: Request, path: Path, content_type: str, name: str, visit: bool = False) -> Response:
+    try:
+        body = path.read_bytes()
+    except OSError:
+        return _not_found()
+    is_page = content_type.startswith("text/html")
+    headers = {"content-type": content_type,
+               "Cache-Control": "no-store" if is_page else WEB_ASSET_CACHE}
+    if is_page and name == "index.html":
+        headers["Content-Security-Policy"] = WORKBENCH_CSP
+    elif is_page or content_type == "image/svg+xml":
+        headers["Content-Security-Policy"] = DOCUMENT_CSP
+    task = None
+    if request.method == "HEAD":
+        headers["content-length"] = str(len(body))
+        body = b""
+    elif visit:   # only a real page view counts as a visit; uptime probes use HEAD
+        task = BackgroundTask(record_event, request, "visit")
+    return Response(content=body, headers=headers, background=task)
+
+
+def _asset_handler(name: str, path: Path, content_type: str, visit: bool):
+    def handler(request: Request):
+        return web_response(request, path, content_type, name, visit)
+    return handler
+
+
+def web_unavailable_handler(request: Request):
+    return text_response(WEB_UNAVAILABLE, "text/plain", 503)
+
+
+def add_web_routes(app: FastAPI, assets: dict) -> None:
+    """GET and HEAD for ``/`` and ``/index.html`` (the workbench index, logged as a visit) and for each other file."""
+    methods = ["GET", "HEAD"]
+    for name, (path, content_type) in assets.items():
+        if name == "index.html":
+            for route in ("/", "/index.html"):
+                app.add_api_route(route, _asset_handler(name, path, content_type, True), methods=methods,
+                                  include_in_schema=False)
+        else:
+            app.add_api_route("/" + name, _asset_handler(name, path, content_type, False), methods=methods,
+                              include_in_schema=False)
+    if "index.html" not in assets:
+        log.error("the web interface index.html was not found in the web folder")
+        for route in ("/", "/index.html"):
+            app.add_api_route(route, web_unavailable_handler, methods=methods, include_in_schema=False)
 
 
 @router.api_route("/api/samples", methods=["GET", "HEAD"])
@@ -570,6 +680,30 @@ async def cancel_heavy(handle) -> None:
 
 class ClientGone(Exception):
     """The client disconnected while its legacy job was running (the job has been cancelled)."""
+
+
+@router.post("/api/v1/tools/{operation}")
+async def data_tool(operation: str, request: Request):
+    """One response per caller; no shared result URL or persistent row export.
+
+    Uses the same bounded heavy lane and disconnect cancellation as compatibility
+    operations. Raw row downloads are returned only on an explicit opt-in.
+    """
+    if operation not in ("resample", "score", "leakage"):
+        raise ApiError(404, "TOOL_UNKNOWN", "Unknown data tool.")
+    require_media_type(request, ("application/json",))
+    body = parse_json(await read_body(request))
+    if not isinstance(body, dict):
+        raise ApiError(422, "TOOL_INPUT_INVALID", "Send a JSON object.")
+    keys = ("csv", "score_csv", "target", "positive_label", "negative_label",
+            "exclude_columns", "method", "model", "seed", "confirm_labels", "include_row_data")
+    payload = {key: body[key] for key in keys if key in body}
+    payload["operation"] = operation
+    handle = await run_in_threadpool(coordinator_of(request).run_heavy, "legacy_tools", payload)
+    try:
+        return json_response(await wait_for_heavy(request, handle))
+    except ClientGone:
+        return json_response({"error": {"code": "CANCELLED", "message": "The request was cancelled."}}, 499)
 
 
 async def legacy_post(request: Request):
@@ -693,7 +827,10 @@ def create_app(config: JobConfig | None = None, coordinator: Coordinator | None 
     app.state.coordinator = coordinator
     app.state.version_info = {"app_version": APP_VERSION, "package_version": _package_version(),
                               "report_schemas": dict(REPORT_SCHEMAS), "release_id": _release_id()}
+    coordinator.app_context = {"app_version": APP_VERSION, "release_id": app.state.version_info["release_id"]}
     app.include_router(router)
+    app.state.web_assets = build_web_assets(web_directory())
+    add_web_routes(app, app.state.web_assets)
     app.add_exception_handler(ApiError, api_error_handler)
     app.add_exception_handler(JobError, job_error_handler)
     app.add_exception_handler(ServiceError, service_error_handler)

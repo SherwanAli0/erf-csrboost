@@ -1,0 +1,342 @@
+[
+ {
+  "job_id": "job_tTFexhWj2Ab1uMp0T-V5lA",
+  "state": "running",
+  "queue_position": null,
+  "progress": null,
+  "elapsed_seconds": 0,
+  "limits": {
+   "per_model_timeout_seconds": 60,
+   "job_timeout_seconds": 300,
+   "queue_wait_seconds": 120
+  },
+  "warnings": [],
+  "models": [],
+  "models_selected": [
+   "logistic",
+   "rf_weighted"
+  ],
+  "reason": null,
+  "expires_at": null
+ },
+ {
+  "job_id": "job_tTFexhWj2Ab1uMp0T-V5lA",
+  "state": "running",
+  "queue_position": null,
+  "progress": {
+   "stage": "parsing",
+   "models_selected": [
+    "logistic",
+    "rf_weighted"
+   ],
+   "models_completed": [],
+   "current_model": null,
+   "limits": {
+    "model_timeout_seconds": 60,
+    "job_timeout_seconds": 300
+   },
+   "warnings": [],
+   "elapsed_seconds": 1.015
+  },
+  "elapsed_seconds": 1.015,
+  "limits": {
+   "per_model_timeout_seconds": 60,
+   "job_timeout_seconds": 300,
+   "queue_wait_seconds": 120
+  },
+  "warnings": [],
+  "models": [],
+  "models_selected": [
+   "logistic",
+   "rf_weighted"
+  ],
+  "reason": null,
+  "expires_at": null
+ },
+ {
+  "job_id": "job_tTFexhWj2Ab1uMp0T-V5lA",
+  "state": "running",
+  "queue_position": null,
+  "progress": {
+   "stage": "parsing",
+   "models_selected": [
+    "logistic",
+    "rf_weighted"
+   ],
+   "models_completed": [],
+   "current_model": null,
+   "limits": {
+    "model_timeout_seconds": 60,
+    "job_timeout_seconds": 300
+   },
+   "warnings": [],
+   "elapsed_seconds": 2.015
+  },
+  "elapsed_seconds": 2.015,
+  "limits": {
+   "per_model_timeout_seconds": 60,
+   "job_timeout_seconds": 300,
+   "queue_wait_seconds": 120
+  },
+  "warnings": [],
+  "models": [],
+  "models_selected": [
+   "logistic",
+   "rf_weighted"
+  ],
+  "reason": null,
+  "expires_at": null
+ },
+ {
+  "job_id": "job_tTFexhWj2Ab1uMp0T-V5lA",
+  "state": "running",
+  "queue_position": null,
+  "progress": {
+   "stage": "fitting",
+   "models_selected": [
+    "logistic",
+    "rf_weighted"
+   ],
+   "models_completed": [],
+   "current_model": "logistic",
+   "limits": {
+    "model_timeout_seconds": 60,
+    "job_timeout_seconds": 300
+   },
+   "warnings": [],
+   "elapsed_seconds": 3.015
+  },
+  "elapsed_seconds": 3.015,
+  "limits": {
+   "per_model_timeout_seconds": 60,
+   "job_timeout_seconds": 300,
+   "queue_wait_seconds": 120
+  },
+  "warnings": [],
+  "models": [],
+  "models_selected": [
+   "logistic",
+   "rf_weighted"
+  ],
+  "reason": null,
+  "expires_at": null
+ },
+ {
+  "job_id": "job_tTFexhWj2Ab1uMp0T-V5lA",
+  "state": "running",
+  "queue_position": null,
+  "progress": {
+   "stage": "fitting",
+   "models_selected": [
+    "logistic",
+    "rf_weighted"
+   ],
+   "models_completed": [],
+   "current_model": "logistic",
+   "limits": {
+    "model_timeout_seconds": 60,
+    "job_timeout_seconds": 300
+   },
+   "warnings": [],
+   "elapsed_seconds": 4.015
+  },
+  "elapsed_seconds": 4.015,
+  "limits": {
+   "per_model_timeout_seconds": 60,
+   "job_timeout_seconds": 300,
+   "queue_wait_seconds": 120
+  },
+  "warnings": [],
+  "models": [],
+  "models_selected": [
+   "logistic",
+   "rf_weighted"
+  ],
+  "reason": null,
+  "expires_at": null
+ },
+ {
+  "job_id": "job_tTFexhWj2Ab1uMp0T-V5lA",
+  "state": "running",
+  "queue_position": null,
+  "progress": {
+   "stage": "fitting",
+   "models_selected": [
+    "logistic",
+    "rf_weighted"
+   ],
+   "models_completed": [
+    {
+     "model": "logistic",
+     "status": "succeeded"
+    }
+   ],
+   "current_model": "rf_weighted",
+   "limits": {
+    "model_timeout_seconds": 60,
+    "job_timeout_seconds": 300
+   },
+   "warnings": [],
+   "elapsed_seconds": 5.031
+  },
+  "elapsed_seconds": 5.031,
+  "limits": {
+   "per_model_timeout_seconds": 60,
+   "job_timeout_seconds": 300,
+   "queue_wait_seconds": 120
+  },
+  "warnings": [],
+  "models": [
+   {
+    "model": "logistic",
+    "status": "succeeded"
+   }
+  ],
+  "models_selected": [
+   "logistic",
+   "rf_weighted"
+  ],
+  "reason": null,
+  "expires_at": null
+ },
+ {
+  "job_id": "job_tTFexhWj2Ab1uMp0T-V5lA",
+  "state": "running",
+  "queue_position": null,
+  "progress": {
+   "stage": "fitting",
+   "models_selected": [
+    "logistic",
+    "rf_weighted"
+   ],
+   "models_completed": [
+    {
+     "model": "logistic",
+     "status": "succeeded"
+    }
+   ],
+   "current_model": "rf_weighted",
+   "limits": {
+    "model_timeout_seconds": 60,
+    "job_timeout_seconds": 300
+   },
+   "warnings": [],
+   "elapsed_seconds": 6.031
+  },
+  "elapsed_seconds": 6.031,
+  "limits": {
+   "per_model_timeout_seconds": 60,
+   "job_timeout_seconds": 300,
+   "queue_wait_seconds": 120
+  },
+  "warnings": [],
+  "models": [
+   {
+    "model": "logistic",
+    "status": "succeeded"
+   }
+  ],
+  "models_selected": [
+   "logistic",
+   "rf_weighted"
+  ],
+  "reason": null,
+  "expires_at": null
+ },
+ {
+  "job_id": "job_tTFexhWj2Ab1uMp0T-V5lA",
+  "state": "running",
+  "queue_position": null,
+  "progress": {
+   "stage": "fitting",
+   "models_selected": [
+    "logistic",
+    "rf_weighted"
+   ],
+   "models_completed": [
+    {
+     "model": "logistic",
+     "status": "succeeded"
+    }
+   ],
+   "current_model": "rf_weighted",
+   "limits": {
+    "model_timeout_seconds": 60,
+    "job_timeout_seconds": 300
+   },
+   "warnings": [],
+   "elapsed_seconds": 7.047
+  },
+  "elapsed_seconds": 7.047,
+  "limits": {
+   "per_model_timeout_seconds": 60,
+   "job_timeout_seconds": 300,
+   "queue_wait_seconds": 120
+  },
+  "warnings": [],
+  "models": [
+   {
+    "model": "logistic",
+    "status": "succeeded"
+   }
+  ],
+  "models_selected": [
+   "logistic",
+   "rf_weighted"
+  ],
+  "reason": null,
+  "expires_at": null
+ },
+ {
+  "job_id": "job_tTFexhWj2Ab1uMp0T-V5lA",
+  "state": "succeeded",
+  "queue_position": null,
+  "progress": {
+   "stage": "done",
+   "models_selected": [
+    "logistic",
+    "rf_weighted"
+   ],
+   "models_completed": [
+    {
+     "model": "logistic",
+     "status": "succeeded"
+    },
+    {
+     "model": "rf_weighted",
+     "status": "succeeded"
+    }
+   ],
+   "current_model": null,
+   "limits": {
+    "model_timeout_seconds": 60,
+    "job_timeout_seconds": 300
+   },
+   "warnings": [],
+   "elapsed_seconds": 7.343
+  },
+  "elapsed_seconds": 7.343,
+  "limits": {
+   "per_model_timeout_seconds": 60,
+   "job_timeout_seconds": 300,
+   "queue_wait_seconds": 120
+  },
+  "warnings": [],
+  "models": [
+   {
+    "model": "logistic",
+    "status": "succeeded"
+   },
+   {
+    "model": "rf_weighted",
+    "status": "succeeded"
+   }
+  ],
+  "models_selected": [
+   "logistic",
+   "rf_weighted"
+  ],
+  "reason": null,
+  "expires_at": "2026-11-09T20:07:39Z"
+ }
+]

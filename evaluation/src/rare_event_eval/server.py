@@ -13,10 +13,19 @@ from .tabular import excluded_metadata_records
 from .training import train_comparison, MODEL_NAMES
 
 WEB = Path(__file__).parent/'web'
-ASSETS = {'index.html':'text/html; charset=utf-8','app.js':'text/javascript; charset=utf-8',
-          'metrics.js':'text/javascript; charset=utf-8','demo-data.js':'text/javascript; charset=utf-8',
-          'style.css':'text/css; charset=utf-8'}
-ASSETS['quality-vs-cost.png']='image/png'
+CONTENT_TYPES = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
+                 '.png':'image/png','.json':'application/json; charset=utf-8','.svg':'image/svg+xml'}
+# Standalone report pages (for example the recorded example) carry inline styles and no script.
+STATIC_PAGE_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; frame-ancestors 'none'"
+
+
+def web_assets():
+    """Regular, non-hidden files of the web folder with a known content type, by file name only (no sub-folders)."""
+    return {item.name: CONTENT_TYPES[item.suffix] for item in WEB.iterdir()
+            if item.is_file() and not item.name.startswith('.') and item.suffix in CONTENT_TYPES}
+
+
+ASSETS = web_assets()
 BUSY = threading.BoundedSemaphore(1)
 
 
@@ -36,14 +45,14 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
-    def _send(self,status,payload,content_type='application/json; charset=utf-8'):
+    def _send(self,status,payload,content_type='application/json; charset=utf-8',csp=None):
         data=json.dumps(payload,allow_nan=False).encode() if not isinstance(payload,bytes) else payload
         self.send_response(status)
         self.send_header('Content-Type',content_type)
         self.send_header('Content-Length',str(len(data)))
         self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff')
-        self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+        self.send_header('Content-Security-Policy',csp or "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
         if self.command!='HEAD':
             self.wfile.write(data)
@@ -56,10 +65,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200,{'ok':True,'mode':'local','training_available':True,'uploads_stored':False})
             return
         name='index.html' if path=='/' else path.lstrip('/')
-        if name not in ASSETS or not (WEB/name).is_file():
+        assets=web_assets()
+        if name not in assets or not (WEB/name).is_file():
             self._send(404,{'error':'Not found.'})
             return
-        self._send(200,(WEB/name).read_bytes(),ASSETS[name])
+        page = name.endswith('.html') and name != 'index.html'
+        self._send(200,(WEB/name).read_bytes(),assets[name],STATIC_PAGE_CSP if page else None)
 
     def do_HEAD(self):
         self.do_GET()

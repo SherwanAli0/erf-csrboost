@@ -13,11 +13,23 @@ ERF-superiority campaign. Historical research results remain separate.
 
 ## Try the browser demo
 
-Open `src/rare_event_eval/web/index.html` directly in a browser. The default
-example has fictional cases and invented scores. It is not an ERF result.
-Prediction CSV evaluation and aggregate JSON/HTML downloads work in the browser
-without Python, an account, AWS, model calls or email. Training requires the
-local Python server. The study tab contains actual aggregate pilot results.
+Open `src/rare_event_eval/web/index.html` directly in a browser. The page has five tabs: Overview (with an
+"Explore an example" section), Analyze a dataset, Evaluate predictions, Research and How it works. Every result is
+labelled as a fictional fixture, a recorded app run, a fresh app run or a historical research record. The fictional
+examples have invented scores and are not ERF results. The recorded app run is a real run of this app on a seeded
+synthetic table (see "Recorded example" below). Prediction CSV evaluation and aggregate JSON/HTML downloads work in the
+browser without Python, an account, AWS, model calls or email, and make no network request. The Research tab holds the
+aggregate research results, kept apart by evidence set, with "not peer reviewed" stated.
+
+"Analyze a dataset" depends on how the page is served. Opened from a file or from static hosting it explains that
+training needs Python. Served by `python -m rare_event_eval serve` it shows the numeric-feature training form. Served
+by the hosted service (`backend/api.py`, see `docs/API.md`) it offers the five-step flow Data, Target and split, Models
+and policy, Run, Results and export: the file is uploaded to the service for fitting, progress and Cancel are real, and
+the downloads are the report, the run settings and a reproducibility bundle, none with row-level data.
+
+The scoring arithmetic of the browser is `src/rare_event_eval/web/scoring-core.js` (checked against Python fixtures);
+the other scripts in that folder are plain files with no build step. Each page script is loaded from the same folder, so
+the folder can be copied as a whole.
 
 CSV data stays in the browser in static mode. In local server mode it is sent
 only to the loopback service. Training uses temporary local worker files,
@@ -106,6 +118,21 @@ The target must be new. Open its index.html directly or review it for static
 hosting. The export does not publish anything. A static site evaluates saved
 predictions but cannot train Python models.
 
+## Recorded example
+
+`examples/output/recorded-example.json` and `.html` are a recorded run of the hosted application's job path on a seeded
+synthetic table (`examples/recorded_example_data.csv`, no real person and no external data), five models, provenance
+`recorded app run`. It is not a historical ERF result. `examples/make_recorded_example.py` regenerates it from the
+repository root (it needs the application environment: pandas, imbalanced-learn and the FastAPI requirements of
+`backend/`):
+
+```powershell
+python evaluation/examples/make_recorded_example.py
+```
+
+The table and every aggregate metric are reproduced exactly; the creation time and the timings differ per run. The
+files are written next to the script and as `recorded-example.json` and `.html` in the package's `web` folder.
+
 ## Verify and build
 
 ```powershell
@@ -114,8 +141,8 @@ predictions but cannot train Python models.
 .venv\Scripts\python -m build
 ```
 
-Node.js enables browser/Python metric parity checks. Without Node that one test
-is skipped. See [scope](docs/scope-and-decisions.md). No external user trial
+Node.js (18 or newer, no packages) enables the browser/Python metric parity check and the browser module tests
+(`tests/test_web_*.js`, run through `tests/test_web_node.py`). Without Node those tests are skipped. See [scope](docs/scope-and-decisions.md). No external user trial
 has occurred. The `examples/output` reports were recorded with version 0.2.0 and
 have not been regenerated.
 
