@@ -61,7 +61,7 @@ INDEX = ROOT / "frontend" / "index.html"     # the legacy page, served at /class
 SAMPLES = ROOT / "samples"
 DEFAULT_WEB_DIR = ROOT / "evaluation" / "src" / "rare_event_eval" / "web"
 
-APP_VERSION = "2.0.1"
+APP_VERSION = "2.0.2"
 REPORT_SCHEMAS = {"training": "training-1.1", "profile": "app-profile-1.0", "job_config": "fyd-job-config-1.0"}
 
 # Same metadata as backend/server.py (a test compares the two so they cannot drift apart).
@@ -687,7 +687,8 @@ def stats_page(request: Request):
     key = (request.headers.get("x-stats-key") or request.query_params.get("key")
            or str(request.path_params.get("key", "")).strip("/"))
     if stats_key_valid(key):
-        return text_response(track_module().stats_html(request.query_params.get('days', '30')), "text/html; charset=utf-8")
+        return text_response(track_module().stats_html(request.query_params.get('days', 'all'),
+                             request.query_params.get('source', 'all')), "text/html; charset=utf-8")
     return _not_found()
 
 

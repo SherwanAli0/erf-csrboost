@@ -1,5 +1,15 @@
 # Changelog
 
+## FixYourDataset 2.0.2
+
+- Focus the private dashboard on visits and where they came from: CV, LinkedIn,
+  GitHub, search, other websites or direct / unknown.
+- Add source filters and per-visit CV/website details with readable source evidence.
+- Move owner/testing visits into a collapsed section; remove application-action
+  and device tables from the dashboard.
+- Read existing historical referrers without rewriting rows. Use Berlin date/time
+  display and retain the existing tracking, source tags, package and hosting allocation.
+
 ## FixYourDataset 2.0.1 / rare-event-eval 0.3.1
 
 - Add a private usage dashboard with UTC date filters, recognised source-link labels,
