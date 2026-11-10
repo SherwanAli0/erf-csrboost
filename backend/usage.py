@@ -15,7 +15,7 @@ SOURCES = frozenset(('linkedin', 'cv', 'github', 'portfolio', 'google', 'bing', 
 MEDIUMS = frozenset(('social', 'resume', 'referral', 'search', 'profile'))
 CAMPAIGNS = frozenset(('portfolio', 'applications'))
 CONTENTS = frozenset(('featured', 'about', 'project', 'post', 'readme', 'ml-engineer', 'python-backend',
-                      'data-science', 'ai-engineer', 'general'))
+                      'data-science', 'ai-engineer', 'general', 'tailored-cv'))
 BOT = re.compile(r'bot\b|crawler|spider|headlesschrome|python-urllib|python-requests|httpx|curl/|wget/', re.I)
 
 

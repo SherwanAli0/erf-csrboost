@@ -11,7 +11,8 @@ BERLIN = ZoneInfo('Europe/Berlin')
 CHANNELS = {'cv':'CV', 'linkedin':'LinkedIn', 'github':'GitHub', 'search':'Search',
             'other':'Other websites', 'unknown':'Direct / unknown'}
 CV_LABELS = {'python-backend':'Software CV', 'ml-engineer':'ML Research CV',
-             'ai-engineer':'AI / GenAI CV', 'general':'German CV', 'data-science':'Data science CV'}
+             'ai-engineer':'AI / GenAI CV', 'general':'German CV', 'data-science':'Data science CV',
+             'tailored-cv':'CV address /cv'}
 PLACEMENTS = {'featured':'Featured card', 'about':'About section', 'project':'Project link',
               'post':'Existing post', 'readme':'README link'}
 AUDIENCE = "is_owner=0 AND COALESCE(traffic,'') NOT IN ('owner','test','likely-bot')"
@@ -85,7 +86,7 @@ def render(track, days='all', source='all'):
         cards+=f'<a class="source-card" href="{esc(link(channel=key))}" aria-current="{"page" if key==data["source"] else "false"}"><span>{esc(label)}</span><strong>{count}</strong><small>{share:.1f}% of visits</small></a>'
     rows=[]
     for ts,channel,content,referrer,evidence in data['recent']:
-        how='Tagged link' if evidence in ('tagged-link','page-context') else 'Referring website' if channel!='unknown' and host_of(referrer) else 'Not available'
+        how='Source-specific address' if evidence=='source-path' else 'Tagged link' if evidence in ('tagged-link','page-context') else 'Referring website' if channel!='unknown' and host_of(referrer) else 'Not available'
         rows.append((stamp(ts),CHANNELS[channel],origin_detail(channel,content,referrer),how))
     traffic_names={'owner':'You','test':'Marked testing','likely-bot':'Likely automated'}
     excluded_rows=[(stamp(ts),traffic_names.get(traffic,'Excluded'),CHANNELS[channel],origin_detail(channel,content,referrer)) for ts,traffic,channel,content,referrer in data['excluded_recent']]

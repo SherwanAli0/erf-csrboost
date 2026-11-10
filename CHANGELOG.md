@@ -1,5 +1,12 @@
 # Changelog
 
+## FixYourDataset 2.0.3
+
+- Add the permanent `/cv` landing address for master and tailored CVs. Source is
+  recorded from the address itself, without query parameters, referrers or JavaScript.
+- Show `Source-specific address` evidence in visit details. Owner and testing
+  visits remain excluded from main totals. Existing links and stored rows are preserved.
+
 ## FixYourDataset 2.0.2
 
 - Focus the private dashboard on visits and where they came from: CV, LinkedIn,

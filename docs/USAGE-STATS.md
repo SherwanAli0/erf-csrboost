@@ -42,6 +42,20 @@ browser-only file and predictions remain entirely in the browser.
 
 ## Link attribution
 
+For all new master or tailored CVs, display and link the same permanent address:
+`https://fixyourdataset.fly.dev/cv`. This serves the existing workbench directly
+and records one visit with source `cv`, content `tailored-cv` and evidence
+`source-path`. It works when copied or typed and needs no query string,
+referrer, JavaScript, cookie or visitor question. HEAD does not count; owner,
+signed-test and likely-bot exclusions still apply. This identifies the CV address
+used, not a specific application, company or person. A forwarded `/cv` link
+continues to identify the original CV distribution channel.
+
+This path labels the landing visit. It does not add cross-page persistence or
+relabel untagged API events. Existing tagged CV links remain supported, including
+their role-specific labels. Previously distributed PDFs cannot be changed remotely.
+New exports should verify both the visible address and actual hyperlink destination.
+
 Use different public destinations for different placements:
 
 ```text

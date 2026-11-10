@@ -185,6 +185,38 @@ class UsageTests(unittest.TestCase):
         with patch.object(track,'_conn',side_effect=OSError('unavailable')):
             self.assertIsNone(track.log_event('visit'))
 
+    def test_cv_address_works_without_query_referrer_or_script(self):
+        with TestClient(api.create_app()) as client:
+            root = client.get('/', headers={'X-FYD-Traffic':'test','X-Stats-Key':'fictional-stats-key'})
+            landing = client.get('/cv', headers={'User-Agent':'Mozilla/5.0'})
+            self.assertEqual(landing.status_code,200)
+            self.assertEqual(landing.content,root.content)
+            self.assertEqual(landing.headers['content-security-policy'],root.headers['content-security-policy'])
+            self.assertEqual(client.get('/app.js').status_code,200)
+            self.assertEqual(client.head('/cv').status_code,200)
+        with closing(sqlite3.connect(self.db)) as c:
+            self.assertEqual(c.execute("SELECT source,content,attribution,route FROM events WHERE traffic!='test'").fetchall(),
+                             [('cv','tailored-cv','source-path','/cv')])
+        page=track.stats_html()
+        self.assertIn('CV address /cv',page)
+        self.assertIn('Source-specific address',page)
+        self.assertEqual(visit_dashboard.snapshot(track)['counts']['cv'],1)
+
+    def test_cv_address_excludes_owner_and_test_traffic_and_does_not_double_count(self):
+        with TestClient(api.create_app()) as client:
+            client.cookies.set('fyd_owner',track.owner_token())
+            client.get('/cv?utm_source=linkedin&utm_content=featured')
+            client.cookies.clear()
+            client.get('/cv',headers={'X-FYD-Traffic':'test','X-Stats-Key':'fictional-stats-key'})
+            client.get('/cv/')
+            self.assertEqual(client.get('/cv/not-a-route').status_code,404)
+        with closing(sqlite3.connect(self.db)) as c:
+            self.assertEqual(c.execute("SELECT source,content,attribution,is_owner FROM events ORDER BY rowid").fetchall(),
+                             [('cv','tailored-cv','source-path',1),('cv','tailored-cv','source-path',0),('cv','tailored-cv','source-path',0)])
+        data=visit_dashboard.snapshot(track)
+        self.assertEqual(data['counts']['cv'],1)
+        self.assertEqual(sum(data['excluded'].values()),2)
+
     def test_concurrent_first_visits_do_not_lose_events_during_migration(self):
         with ThreadPoolExecutor(max_workers=6) as pool:
             list(pool.map(lambda _: track.log_event('visit', user_agent='Mozilla/5.0'), range(18)))
