@@ -41,9 +41,13 @@
   function createApiClient(options = {}) {
     const fetchImpl = options.fetchImpl || (typeof globalThis.fetch === 'function' ? globalThis.fetch.bind(globalThis) : null);
     const base = options.base || '';
+    // Carry only recognised public campaign labels in memory. No visitor cookie,
+    // persistent storage, raw referrer, user identifier or general query string.
+    const attribution = campaignContext(options.pageSearch, options.pageReferrer);
     async function request(method, path, opts = {}) {
       if (!fetchImpl) throw new ApiError({ kind: 'network', message: 'This browser cannot make network requests.' });
       const headers = Object.assign({}, opts.headers || {});
+      if (attribution && !base && path.startsWith('/api/')) headers['X-FYD-Attribution'] = JSON.stringify(attribution);
       if (opts.bearer) headers.Authorization = 'Bearer ' + opts.bearer;
       const init = { method, headers, cache: 'no-store', credentials: 'same-origin', redirect: 'error' };
       if (opts.body !== undefined) init.body = opts.body;
@@ -107,7 +111,26 @@
       }
     };
   }
-  const api = { createApiClient, ApiError, headerFileName };
+  function campaignContext(search, referrer) {
+    const allow = {
+      utm_source: ['linkedin', 'cv', 'github', 'portfolio', 'google', 'bing', 'duckduckgo'],
+      utm_medium: ['social', 'resume', 'referral', 'search', 'profile'],
+      utm_campaign: ['portfolio', 'applications'],
+      utm_content: ['featured', 'about', 'project', 'post', 'readme', 'ml-engineer', 'python-backend', 'data-science', 'ai-engineer', 'general']
+    };
+    try {
+      const query = new URLSearchParams(search || ''), out = {};
+      Object.keys(allow).forEach(key => { const value = query.get(key); if (allow[key].includes(value)) out[key] = value; });
+      if (!out.utm_source && referrer) {
+        const host = new URL(referrer).hostname.toLowerCase();
+        for (const [domain, source] of [['linkedin.com', 'linkedin'], ['github.com', 'github'], ['google.com', 'google'], ['bing.com', 'bing'], ['duckduckgo.com', 'duckduckgo']]) {
+          if (host === domain || host.endsWith('.' + domain)) { out.utm_source = source; break; }
+        }
+      }
+      return out.utm_source ? out : null;
+    } catch (_) { return null; }
+  }
+  const api = { createApiClient, ApiError, headerFileName, campaignContext };
   root.FYD = root.FYD || {};
   root.FYD.api = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

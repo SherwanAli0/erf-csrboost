@@ -2,7 +2,8 @@
 
 ``evaluation/examples/make_recorded_example.py`` runs a seeded synthetic table through the application's job path and
 saves the report (JSON and HTML). These tests check the saved files, then run the generator again into a private folder
-and require the same table bytes and the same aggregate results; only the creation time, timings and memory may differ.
+and require the same table bytes and the same aggregate results. Runtime metadata
+may differ; regenerated versions must match the installed application and package.
 
 Run from the repository root (the regeneration test takes about half a minute)::
 
@@ -24,6 +25,8 @@ import unittest
 import api_support as support
 
 from rare_event_eval import cli  # noqa: E402
+from rare_event_eval import __version__  # noqa: E402
+from api import APP_VERSION  # noqa: E402
 from rare_event_eval.reports import render_html, training_report  # noqa: E402
 
 import services  # noqa: E402
@@ -32,7 +35,9 @@ EXAMPLES = support.ROOT / "evaluation" / "examples"
 OUTPUT = EXAMPLES / "output"
 WEB = support.ROOT / "evaluation" / "src" / "rare_event_eval" / "web"
 GENERATOR = EXAMPLES / "make_recorded_example.py"
-VOLATILE = [r".*/created_utc", r".*/tool/python", r".*/environment/python", r".*/(fit_seconds|fit_and_evaluation_seconds|peak_process_rss_bytes|worker_wall_seconds)"]
+VOLATILE = [r".*/created_utc", r".*/tool/python", r".*/environment/python", r"/app/app_version",
+            r"/outcomes/[^/]+/report/tool/version",
+            r".*/(fit_seconds|fit_and_evaluation_seconds|peak_process_rss_bytes|worker_wall_seconds)"]
 
 
 def load_generator():
@@ -155,12 +160,14 @@ class Regeneration(unittest.TestCase):
             self.assertEqual((Path(folder) / "recorded_example_data.csv").read_bytes(), saved_csv)
             html = (Path(folder) / "recorded-example.html").read_text(encoding="utf-8")
         saved = json.loads((WEB / "recorded-example.json").read_bytes())
+        self.assertEqual(regenerated['app']['app_version'], APP_VERSION)
         for outcome in regenerated['outcomes'].values():
             if outcome['status']=='success':
                 self.assertEqual(outcome['report']['tool']['python'],platform.python_version())
+                self.assertEqual(outcome['report']['tool']['version'],__version__)
         differing = diff_paths(saved, regenerated)
         rest = [item for item in differing if not any(re.fullmatch(pattern, item) for pattern in VOLATILE)]
-        self.assertEqual(rest, [], f"fields that changed and are not times, timings or memory: {rest[:10]}")
+        self.assertEqual(rest, [], f"result fields changed outside validated runtime metadata: {rest[:10]}")
         for name, row in saved["outcomes"].items():   # the headline numbers, explicitly
             again = regenerated["outcomes"][name]["report"]["models"][name]
             self.assertEqual(diff_paths(again["metrics"], row["report"]["models"][name]["metrics"]), [], name)

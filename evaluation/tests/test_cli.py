@@ -106,7 +106,8 @@ class CommandLine(unittest.TestCase):
         process = subprocess.run([sys.executable, "-B", "-m", "rare_event_eval", "--version"],
                                  capture_output=True, text=True, check=False)
         self.assertEqual(process.returncode, 0, process.stderr)
-        self.assertEqual(process.stdout.strip(), "0.3.0")
+        from rare_event_eval import __version__
+        self.assertEqual(process.stdout.strip(), __version__)
 
 
 if __name__ == "__main__":
