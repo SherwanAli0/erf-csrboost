@@ -2,11 +2,36 @@
 
 Author: Sherwan Ali.
 
-This document records the scope of checks for the FixYourDataset upgrade. Source review, local
-verification, public CI and deployment are separate gates. The working branch is
-`feat/fyd-flagship-upgrade`; an unmerged branch is not a live release.
+This document records actual source, CI, image and live checks. Historical preparation notes
+below are retained with their original scope; the shipped-release record takes precedence.
 
-## Locally observed
+## Shipped release, 10 November 2026
+
+- App 2.0.1 and package 0.3.1 are deployed. Runtime source is `2d26897`; `c118045`
+  changes only a cancellation regression test. [PR #2](https://github.com/SherwanAli0/erf-csrboost/pull/2)
+  merged as `97c4c8e`. [Release and distributions](https://github.com/SherwanAli0/erf-csrboost/releases/tag/fyd-v2.0.1).
+- [All five CI jobs passed](https://github.com/SherwanAli0/erf-csrboost/actions/runs/42793611554):
+  Linux/Windows and Python 3.11/3.12 package/application suites, browser parity, legacy
+  regressions, distribution builds, clean wheel installation and the constrained Linux image.
+- Local application suite: 260 checks, two skips. Package suite: 271 checks, two skips.
+  Nine focused usage checks, nine browser-client checks and 18 browser static checks passed.
+  The later cancellation-test synchronization change passed its targeted check and final CI.
+- The exact deployed image passed 49 local checks at one CPU and 1,024 MiB, including
+  the seeded 10,000-row case. This is bounded fixture evidence, not a guarantee for every input.
+- The earlier 2.0 release passed 35 small live acceptance checks. The 2.0.1 follow-up
+  verified all four private dashboard date ranges and 12 real action-accounting checks,
+  including one owned 160-row fictional logistic comparison, report/export and cleanup.
+  These requests were authenticated as test traffic and excluded from the main counts.
+- A backup and checksum comparison preserved all original columns of 189 historical usage
+  rows. Existing machine allocation, volume, environment and service settings were unchanged.
+  No new resources, external analytics service or visitor cookie were introduced.
+
+The 2.0.1 image platform digest is
+`sha256:4736357adebd3eff4f71cc183074d6e9b71c7bec7fb2caa9ca3ec5374e1ec84f`.
+Detailed owner receipts remain private because they include operational/account context.
+[Usage counting and attribution limits](USAGE-STATS.md) describe what the dashboard can establish.
+
+## Earlier local preparation receipts
 
 - Python 3.11.9 application environment: `pip check` passed with the committed dependency lock.
 - Integrated-tool contract and real-worker API tests: 10 passed, covering opt-in row exports,
@@ -22,8 +47,8 @@ verification, public CI and deployment are separate gates. The working branch is
   a maximum-size-input benchmark or a measurement on the Fly host.
 - Historical research training was not rerun. Result files and submitted research remain unchanged.
 
-Full suite counts, clean-package results and CI/deployment references are added after their actual
-completion. A blocked test or skipped check must not be reported as passing.
+The following paragraphs preserve the earlier incremental checks. The final release gates above
+supersede their provisional status. A blocked test or skipped check is not a passing check.
 
 The full local application suite passed 244 tests (two platform-specific skips); the package suite
 passed 271 (two optional skips). Later explicit-import coverage added six passing checks and the
@@ -63,7 +88,7 @@ docker build -t fyd-check .
 python -B tools/container_smoke.py --image fyd-check
 ```
 
-Package distributions are intended for a tagged GitHub release, not a claimed PyPI publication.
+Package distributions are attached to the tagged GitHub release linked above. They are not published on PyPI.
 The CI workflow checks Linux and Windows with Python 3.11/3.12, a fresh wheel install outside the
 source tree and the constrained Linux image. A defined matrix alone is not proof that it passed.
 
