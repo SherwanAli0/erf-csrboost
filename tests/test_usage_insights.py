@@ -12,6 +12,7 @@ import api_support  # establishes the backend path
 import api
 import track
 import usage
+import visit_dashboard
 from fastapi.testclient import TestClient
 
 
@@ -85,11 +86,65 @@ class UsageTests(unittest.TestCase):
         with closing(sqlite3.connect(self.db)) as c, c:
             c.execute('UPDATE events SET detail=?', ('<script>alert(1)</script>',))
         page = track.stats_html('all')
-        self.assertIn('&lt;script&gt;', page)
         self.assertNotIn('<script>', page)
-        for text in ('visitor-days (estimate)', 'not verified people', 'LinkedIn Featured', 'utm_source=cv', 'Direct / unknown'):
+        self.assertNotIn('alert(1)',page)
+        for text in ('Where visits come from', 'Your visits and testing', 'Direct / unknown', 'Which link or website'):
             self.assertIn(text,page)
         self.assertEqual(usage.snapshot(track, "30' OR 1=1")['days'], '30')
+
+    def test_visits_only_counts_ignore_jobs_and_exclude_owner_tests_and_bots(self):
+        self.event(source='cv',content='python-backend',attribution='tagged-link')
+        self.event(source='linkedin',content='featured',attribution='tagged-link')
+        self.event(traffic='test',source='cv')
+        self.event(traffic='likely-bot',source='linkedin')
+        track.log_event('visit',is_owner=1)
+        for _ in range(12):track.log_event('job_submitted')
+        data=visit_dashboard.snapshot(track)
+        self.assertEqual(data['total'],2)
+        self.assertEqual((data['counts']['cv'],data['counts']['linkedin']),(1,1))
+        self.assertEqual(sum(data['excluded'].values()),3)
+        self.assertEqual(len(data['recent']),2)
+        page=track.stats_html()
+        for text in ('jobs accepted','report downloads','Actions and HTTP outcomes','Device and browser families','Links to use from now on'):
+            self.assertNotIn(text,page)
+        self.assertIn('Software CV',page)
+
+    def test_historical_referrers_are_read_without_reclassifying_rows(self):
+        self.event()
+        with closing(sqlite3.connect(self.db)) as c,c:
+            c.execute("UPDATE events SET source='',metadata_version=0,referrer=?",('https://www.linkedin.com/feed/',))
+        data=visit_dashboard.snapshot(track)
+        self.assertEqual(data['counts']['linkedin'],1)
+        with closing(sqlite3.connect(self.db)) as c:
+            self.assertEqual(c.execute('SELECT source,metadata_version FROM events').fetchone(),('',0))
+        self.assertEqual(visit_dashboard.channel_of('', 'https://linkedin.com.evil.test/'),'other')
+        self.assertEqual(visit_dashboard.channel_of('', 'github.com'),'github')
+        self.assertEqual(visit_dashboard.channel_of('', ''),'unknown')
+
+    def test_source_filter_and_date_parameters_are_bounded(self):
+        self.event(source='cv',content='ml-engineer',attribution='tagged-link')
+        self.event(source='linkedin',attribution='tagged-link')
+        data=visit_dashboard.snapshot(track,'all','cv')
+        self.assertEqual(data['total'],2)
+        self.assertEqual([row[1] for row in data['recent']],['cv'])
+        self.assertEqual(visit_dashboard.snapshot(track,'bad','bad')['days'],'all')
+        self.assertEqual(visit_dashboard.snapshot(track,'bad','bad')['source'],'all')
+        page=track.stats_html('all','cv')
+        self.assertIn('Recent visits from CV',page)
+        self.assertIn('ML Research CV',page)
+        self.assertIn('Show all sources',page)
+
+    def test_visit_date_range_uses_the_berlin_calendar_boundary(self):
+        from datetime import datetime,timedelta
+        day=datetime.now(visit_dashboard.BERLIN).date()-timedelta(days=6)
+        cutoff=datetime.combine(day,datetime.min.time(),tzinfo=visit_dashboard.BERLIN).timestamp()
+        self.event(source='cv')
+        self.event(source='cv')
+        with closing(sqlite3.connect(self.db)) as c,c:
+            c.execute('UPDATE events SET ts=? WHERE rowid=1',(cutoff-1,))
+            c.execute('UPDATE events SET ts=? WHERE rowid=2',(cutoff+1,))
+        self.assertEqual(visit_dashboard.snapshot(track,'7')['total'],1)
+        self.assertEqual(visit_dashboard.snapshot(track,'all')['total'],2)
 
     def test_new_api_actions_are_counted_without_polling_or_resource_ids(self):
         self.assertEqual(api.usage_action('POST','/api/v1/jobs',202), ('job_submitted',''))
@@ -117,6 +172,9 @@ class UsageTests(unittest.TestCase):
             page = client.get('/stats',headers={'X-Stats-Key':'fictional-stats-key'},params={'days':'all'})
             self.assertEqual(page.status_code,200)
             self.assertNotIn('fictional-stats-key',page.text)
+            filtered=client.get('/stats',headers={'X-Stats-Key':'fictional-stats-key'},params={'days':'all','source':'cv'})
+            self.assertEqual(filtered.status_code,200)
+            self.assertIn('Recent visits from CV',filtered.text)
         with closing(sqlite3.connect(self.db)) as c, c:
             self.assertEqual(c.execute('SELECT COUNT(*) FROM events').fetchone()[0],5)
             self.assertEqual(c.execute("SELECT COUNT(*) FROM events WHERE traffic='test'").fetchone()[0],1)

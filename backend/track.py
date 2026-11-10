@@ -75,6 +75,6 @@ def log_event(kind, detail="", ip="", user_agent="", referrer="", is_owner=0):
         pass   # tracking must never break the app
 
 
-def stats_html(days='30'):
+def stats_html(days='all', source='all'):
     import sys
-    return usage.render(sys.modules[__name__], days)
+    return usage.render(sys.modules[__name__], days, source)

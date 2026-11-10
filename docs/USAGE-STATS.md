@@ -8,6 +8,18 @@ new paid resource, visitor cookie or cross-day identifier is introduced.
 
 ## What the numbers mean
 
+The owner page focuses on visits and entry sources. Source cards show CV,
+LinkedIn, GitHub, search, other websites and direct / unknown. Select a card to
+filter the recent visits list, which names the CV variant or referring hostname
+and whether the evidence is a tagged link or a referrer. Owner, testing and
+likely automated visits appear in a collapsed section and stay out of main totals.
+The page defaults to all time; filters and visit times use Europe/Berlin local time.
+Historical referrers are interpreted when reading the page, without changing old rows.
+Missing sources are not guessed. Refreshes count as additional visits, not new people.
+
+Other application request events remain in the existing log but are not displayed
+on the visits page. No new tracking, CV edit or LinkedIn edit is part of this UI change.
+
 - Page requests count GET requests to `/`, `/index.html` and `/classic`. Reloads
   count again; HEAD probes, health checks and static assets do not count.
 - Visitor-days count distinct daily salted visitor tags among those requests.
@@ -20,7 +32,7 @@ new paid resource, visitor cookie or cross-day identifier is introduced.
   including attempts which fail later. New data-tool response counts are separate.
 - Main counts exclude explicitly marked owner, authenticated test and likely-bot
   traffic. The remainder is unclassified, not confirmed human traffic.
-- Date filters use UTC calendar days: today plus the preceding 6, 29 or 89 days,
+- Visit-page date filters use Berlin calendar days: today plus the preceding 6, 29 or 89 days,
   or all time. Old code showed the last 30 *active dates* rather than 30 days.
 
 The server records workbench uploads, accepted jobs, result retrievals, exports and
@@ -97,7 +109,8 @@ Retention is unchanged and there is no automatic purge. Queries aggregate in
 SQLite and return bounded tables. Optional event logging fails open, preserving
 application responses when analytics storage fails.
 
-The private dashboard supports `?days=7`, `30`, `90` or `all`. Its normal owner
+The private dashboard supports `?days=7`, `30`, `90` or `all` and optional
+`&source=cv`, `linkedin`, `github`, `search`, `other` or `unknown`. Its normal owner
 bookmark uses `/stats/<owner-key>` so relative range links retain authentication.
 When authenticating with a header or `?key=`, supply that authentication again on
 each request. The dashboard never echoes the key into its generated HTML.
