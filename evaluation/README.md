@@ -1,6 +1,6 @@
 # Rare-event evaluation workbench
 
-Author: Sherwan Ali. Development release 0.3.0.
+Author: Sherwan Ali. Development release 0.3.1.
 
 Compare binary-classification models using explicit labels, review capacity,
 probability quality and assumed costs. Start with saved predictions in the free

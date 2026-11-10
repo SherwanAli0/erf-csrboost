@@ -7,7 +7,7 @@
   if (window.FYD_PREFLIGHT && window.FYD_PREFLIGHT.missing(window).length) return;
   const F = window.FYD, U = F.util, C = F.content, RV = F.reportView, V = F.views, P = F.predictions, MODELS = F.MODELS, M = window.RareEventMetrics, esc = U.esc;
   const $ = id => document.getElementById(id);
-  const api = F.api.createApiClient();
+  const api = F.api.createApiClient({ pageSearch: location.search, pageReferrer: document.referrer });
   const flow = F.flow.createAnalysisFlow({ api });
   const env = { mode: 'static', hosted: false, recorded: null, version: null, detected: false };
   const TITLES = { overview: 'Overview', example: 'Explore an example', analyze: 'Analyze a dataset', tools: 'Data tools', evaluate: 'Evaluate predictions', research: 'Research', how: 'How it works' };

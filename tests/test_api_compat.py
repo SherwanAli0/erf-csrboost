@@ -593,6 +593,12 @@ class LegacyRealServer(unittest.TestCase):
             wait_for(lambda: processes_with(self.marker), 60, 1.0, "the analysis child process to appear")
         # the socket is closed now: the server must notice, cancel the job and kill the tree
         wait_for(lambda: not processes_with(self.marker), 40, 1.0, "the child processes to be killed after the disconnect")
+        # Process exit precedes supervisor finalization. Until that finalization,
+        # the old job still reserves its result budget, so a second request can
+        # correctly receive STORAGE_FULL even though its child has already gone.
+        # Observe cleanup completion rather than racing that internal boundary.
+        wait_for(lambda: "job finished" in self.server.output() and "state=cancelled" in self.server.output(),
+                 15, 0.1, "the cancelled job's storage reservation to be released")
         with httpx.Client(base_url=self.server.url, timeout=120) as http:
             self.assertEqual(http.get("/healthz").status_code, 200)
             fast = http.post("/api/analyze", json={"csv": CSV_TEXT, "target": TARGET, "folds": 1})

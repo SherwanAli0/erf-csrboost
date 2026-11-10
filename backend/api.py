@@ -61,7 +61,7 @@ INDEX = ROOT / "frontend" / "index.html"     # the legacy page, served at /class
 SAMPLES = ROOT / "samples"
 DEFAULT_WEB_DIR = ROOT / "evaluation" / "src" / "rare_event_eval" / "web"
 
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.0.1"
 REPORT_SCHEMAS = {"training": "training-1.1", "profile": "app-profile-1.0", "job_config": "fyd-job-config-1.0"}
 
 # Same metadata as backend/server.py (a test compares the two so they cannot drift apart).
@@ -217,12 +217,13 @@ class GuardMiddleware:
         scope.setdefault("state", {})["request_id"] = request_id
         method, path = scope["method"], scope["path"]
         headers = Headers(scope=scope)
-        started = {"value": False}
+        started = {"value": False, "status": 0}
         no_referrer = path not in NO_REFERRER_EXEMPT
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 started["value"] = True
+                started["status"] = message["status"]
                 out = MutableHeaders(scope=message)
                 out["X-Request-ID"] = request_id
                 out["X-Content-Type-Options"] = "nosniff"
@@ -271,6 +272,14 @@ class GuardMiddleware:
             log.error("unhandled error class=%s request=%s", type(exc).__name__, request_id)
             if not started["value"]:
                 await reply(500, "INTERNAL_ERROR", "The service could not complete this request.")
+        finally:
+            action = usage_action(method, path, started['status'])
+            if action:
+                try:
+                    scope.setdefault('state', {})['usage_status'] = started['status']
+                    await run_in_threadpool(record_event, Request(scope), *action)
+                except Exception:
+                    pass  # Optional usage accounting cannot change a response.
 
 
 async def too_large(reply, path: str, limit: int) -> None:
@@ -485,7 +494,49 @@ def is_owner_browser(request: Request) -> bool:
 
 def record_event(request: Request, kind: str, detail: str = "") -> None:
     ip, agent, referrer = visitor_details(request)
-    track_module().log_event(kind, detail, ip, agent, referrer, is_owner=is_owner_browser(request))
+    import usage
+    tracker = track_module()
+    is_test = request.headers.get('x-fyd-traffic') == 'test' and stats_key_valid(request.headers.get('x-stats-key', ''))
+    context = usage.request_context(request.query_params, request.headers.get('x-fyd-attribution', ''),
+                                    agent, referrer, usage_route(request.url.path),
+                                    getattr(request.state, 'usage_status', 200), is_test)
+    with usage.event_context(context):
+        tracker.log_event(kind, detail, ip, agent, referrer, is_owner=is_owner_browser(request))
+
+
+def usage_route(path: str) -> str:
+    """Fixed route templates only; dataset/job identifiers and owner keys never enter analytics."""
+    if path in ('/', '/index.html', '/classic', '/api/analyze', '/api/score'):
+        return path
+    if path == '/api/v1/datasets':
+        return path
+    if path == '/api/v1/jobs':
+        return path
+    if re.fullmatch(r'/api/v1/jobs/[^/]+/result', path):
+        return '/api/v1/jobs/{id}/result'
+    if re.fullmatch(r'/api/v1/jobs/[^/]+/exports/[^/]+', path):
+        return '/api/v1/jobs/{id}/exports/{kind}'
+    if path in ('/api/v1/tools/resample', '/api/v1/tools/score', '/api/v1/tools/leakage'):
+        return path
+    return ''
+
+
+def usage_action(method: str, path: str, status: int):
+    """Count request outcomes, never polling, health checks, datasets or row content."""
+    action = None
+    if method == 'POST' and path == '/api/v1/datasets':
+        action = ('dataset_uploaded', '')
+    elif method == 'POST' and path == '/api/v1/jobs':
+        action = ('job_submitted', '')
+    elif method == 'GET' and re.fullmatch(r'/api/v1/jobs/[^/]+/result', path):
+        action = ('report_opened', '') if status != 202 else None
+    elif method == 'GET' and re.fullmatch(r'/api/v1/jobs/[^/]+/exports/(report_json|report_html|config_json|repro_bundle)', path):
+        action = ('report_download', path.rsplit('/', 1)[-1])
+    elif method == 'POST' and path in ('/api/v1/tools/resample', '/api/v1/tools/score', '/api/v1/tools/leakage'):
+        action = ('data_tool', path.rsplit('/', 1)[-1])
+    if action and status >= 400:
+        return ('request_refused', action[0])
+    return action if status in (200, 201, 202) else None
 
 
 def stats_key_valid(candidate: str) -> bool:
@@ -636,7 +687,7 @@ def stats_page(request: Request):
     key = (request.headers.get("x-stats-key") or request.query_params.get("key")
            or str(request.path_params.get("key", "")).strip("/"))
     if stats_key_valid(key):
-        return text_response(track_module().stats_html(), "text/html; charset=utf-8")
+        return text_response(track_module().stats_html(request.query_params.get('days', '30')), "text/html; charset=utf-8")
     return _not_found()
 
 

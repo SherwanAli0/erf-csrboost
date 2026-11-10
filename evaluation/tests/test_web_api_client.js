@@ -107,4 +107,21 @@ test('no module other than the API client can reach the network or storage', () 
   assert.deepEqual(offenders, []);
 });
 
+test('campaign context keeps only public labels and follows same-origin API calls', async () => {
+  assert.deepEqual(API.campaignContext('?utm_source=cv&utm_medium=resume&utm_campaign=portfolio&utm_content=ml-engineer&email=private', ''),
+    { utm_source: 'cv', utm_medium: 'resume', utm_campaign: 'portfolio', utm_content: 'ml-engineer' });
+  assert.equal(API.campaignContext('?utm_source=private-person', ''), null);
+  assert.deepEqual(API.campaignContext('', 'https://www.linkedin.com/feed/?private=value'), { utm_source: 'linkedin' });
+  assert.equal(API.campaignContext('', 'https://linkedin.com.evil.test/'), null);
+  const calls = [];
+  const api = API.createApiClient({pageSearch: '?utm_source=cv&utm_content=python-backend', pageReferrer: '',
+    fetchImpl: async (url,init) => { calls.push({url,init}); return reply(200,{app_version:'2'}); }});
+  await api.detectHosted();
+  assert.deepEqual(JSON.parse(calls[0].init.headers['X-FYD-Attribution']), {utm_source:'cv',utm_content:'python-backend'});
+  assert.ok(!JSON.stringify(calls).includes('private'));
+  const external = API.createApiClient({base:'https://different.test',pageSearch:'?utm_source=cv',
+    fetchImpl: async (url,init) => { assert.ok(!init.headers['X-FYD-Attribution']); return reply(200,{app_version:'2'}); }});
+  await external.detectHosted();
+});
+
 S.run('test_web_api_client.js');

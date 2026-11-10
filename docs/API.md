@@ -418,8 +418,10 @@ no capability and are not part of the versioned interface.
   trusted only when the environment variable `FLY_APP_NAME` is set (Fly sets it in its machines, and its proxy
   overwrites that header) or when `FYD_TRUST_FLY_CLIENT_IP=1` is set; anywhere else any caller can send the
   header, so it is ignored. `X-Forwarded-For` is ignored unless `FYD_TRUST_X_FORWARDED_FOR=1`. With neither
-  header trusted the socket peer is used. A `Referer` that contains `/whoami/` or `/stats/` is not stored.
+  header trusted the socket peer is used. New referrers are reduced to hostnames; paths, queries and owner URLs are not stored.
   `FYD_USAGE_DB` can name another database file for the usage log.
+- Usage statistics: see [USAGE-STATS.md](USAGE-STATS.md) for recognised source tags, UTC date filters,
+  owner/test/bot exclusions, new workbench request counts and limits of historical attribution.
 - No per-visitor accounting. The service does not count requests, jobs or bytes per visitor or per address in
   this release. One visitor can occupy the single heavy slot and its waiting slot, the dataset slots and the
   light lane, and other visitors then get 429 until a slot is free. That is an availability limit of a small
