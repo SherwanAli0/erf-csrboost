@@ -61,7 +61,7 @@ INDEX = ROOT / "frontend" / "index.html"     # the legacy page, served at /class
 SAMPLES = ROOT / "samples"
 DEFAULT_WEB_DIR = ROOT / "evaluation" / "src" / "rare_event_eval" / "web"
 
-APP_VERSION = "2.0.2"
+APP_VERSION = "2.0.3"
 REPORT_SCHEMAS = {"training": "training-1.1", "profile": "app-profile-1.0", "job_config": "fyd-job-config-1.0"}
 
 # Same metadata as backend/server.py (a test compares the two so they cannot drift apart).
@@ -500,13 +500,16 @@ def record_event(request: Request, kind: str, detail: str = "") -> None:
     context = usage.request_context(request.query_params, request.headers.get('x-fyd-attribution', ''),
                                     agent, referrer, usage_route(request.url.path),
                                     getattr(request.state, 'usage_status', 200), is_test)
+    if request.url.path == '/cv':
+        context.update(source='cv', medium='resume', campaign='portfolio',
+                       content='tailored-cv', attribution='source-path')
     with usage.event_context(context):
         tracker.log_event(kind, detail, ip, agent, referrer, is_owner=is_owner_browser(request))
 
 
 def usage_route(path: str) -> str:
     """Fixed route templates only; dataset/job identifiers and owner keys never enter analytics."""
-    if path in ('/', '/index.html', '/classic', '/api/analyze', '/api/score'):
+    if path in ('/', '/index.html', '/cv', '/classic', '/api/analyze', '/api/score'):
         return path
     if path == '/api/v1/datasets':
         return path
@@ -650,9 +653,12 @@ def web_unavailable_handler(request: Request):
 def add_web_routes(app: FastAPI, assets: dict) -> None:
     """GET and HEAD for ``/`` and ``/index.html`` (the workbench index, logged as a visit) and for each other file."""
     methods = ["GET", "HEAD"]
+    def cv_canonical_address(request: Request):
+        return Response(status_code=307, headers={'Location':'/cv','Cache-Control':'no-store'})
+    app.add_api_route('/cv/', cv_canonical_address, methods=methods, include_in_schema=False)
     for name, (path, content_type) in assets.items():
         if name == "index.html":
-            for route in ("/", "/index.html"):
+            for route in ("/", "/index.html", "/cv"):
                 app.add_api_route(route, _asset_handler(name, path, content_type, True), methods=methods,
                                   include_in_schema=False)
         else:
@@ -660,7 +666,7 @@ def add_web_routes(app: FastAPI, assets: dict) -> None:
                               include_in_schema=False)
     if "index.html" not in assets:
         log.error("the web interface index.html was not found in the web folder")
-        for route in ("/", "/index.html"):
+        for route in ("/", "/index.html", "/cv"):
             app.add_api_route(route, web_unavailable_handler, methods=methods, include_in_schema=False)
 
 
