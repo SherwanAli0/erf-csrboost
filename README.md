@@ -8,6 +8,8 @@ as one named model recipe.
 [Package and CLI](evaluation/README.md) |
 [Engineering case study](docs/ENGINEERING-CASE-STUDY.md) |
 [Architecture](docs/ARCHITECTURE.md) |
+[Release verification](docs/RELEASE-VERIFICATION.md) |
+[Usage statistics](docs/USAGE-STATS.md) |
 [Research evidence](research/RESEARCH-EVIDENCE.md)
 
 Start with **Explore an example** for a recorded synthetic run, or **Evaluate predictions** for

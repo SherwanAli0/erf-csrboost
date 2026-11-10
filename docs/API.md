@@ -422,23 +422,24 @@ no capability and are not part of the versioned interface.
   `FYD_USAGE_DB` can name another database file for the usage log.
 - Usage statistics: see [USAGE-STATS.md](USAGE-STATS.md) for recognised source tags, UTC date filters,
   owner/test/bot exclusions, new workbench request counts and limits of historical attribution.
-- No per-visitor accounting. The service does not count requests, jobs or bytes per visitor or per address in
-  this release. One visitor can occupy the single heavy slot and its waiting slot, the dataset slots and the
+- No per-visitor resource quotas. The aggregate usage log does not enforce request, job or byte quotas
+  per visitor or address. One visitor can occupy the single heavy slot and its waiting slot, the dataset slots and the
   light lane, and other visitors then get 429 until a slot is free. That is an availability limit of a small
   shared service and a known limit, not an ownership problem: the other visitors cannot see, cancel or delete
   anything that visitor created, and a running job of theirs is never touched.
 
 ## Honest limits
 
-- One process, one active heavy job, one waiting. This is a small demo service, not a batch system. It was
-  tested on Windows 11 with Python 3.11 and a Windows port of the process handling; the POSIX process code was
-  exercised only in a smaller smoke test (see the Stage 2 reports), and the Linux image was not built or run.
+- One process, one active heavy job, one waiting. This is a small demo service, not a batch system.
+  Linux/Windows and Python 3.11/3.12 checks passed, and the exact Linux deployment image was exercised
+  at one CPU and 1,024 MiB. See [release verification](RELEASE-VERIFICATION.md) for the measured scope.
 - All state is in memory and in one temporary folder. A restart loses every dataset and job. Two service
   processes must not share a storage folder.
 - Capabilities are bearer secrets over whatever transport the service is exposed on. The service does not
   terminate TLS; on a hosted deployment that is the proxy's job.
-- Timeouts, row and feature limits and the storage cap are provisional presets that have not been measured on
-  any hosted machine. A worker has thread limits and a memory ceiling (`FYD_CHILD_MEMORY_MB`, 700 by default);
+- Timeout, row, feature and storage limits are bounded presets, not guarantees that every admissible input
+  finishes. Constrained-image fixtures and small live jobs were checked; arbitrary maximum inputs were not.
+  A worker has thread limits and a memory ceiling (`FYD_CHILD_MEMORY_MB`, 700 by default);
   an out-of-memory kill by the operating system of the whole machine still shows as `JOB_CRASHED`.
 - The report is the package's report for the data that was uploaded. The service does not check the data for
   leakage, time order or label quality beyond what the profile and the package report.
