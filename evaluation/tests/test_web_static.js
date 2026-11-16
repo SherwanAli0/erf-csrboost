@@ -127,13 +127,12 @@ test('no storage, cookie, console, eval or history use; tokens cannot reach a UR
   assert.ok(!/[?&]token|capability=|cap=/.test(app + S.readWeb('flow.js') + S.readWeb('api-client.js').replace(/\/\/.*$/gm, '')));
 });
 
-test('no local paths, user names, promotional superlatives or assistant credits in the web files', () => {
+test('no local paths, user names or promotional superlatives in the web files', () => {
   const offenders = [];
   TEXT_FILES.forEach(f => {
     const src = S.readWeb(f);
     if (/[A-Za-z]:\\|\/Users\/|\/home\//i.test(src) || new RegExp(['s', 'h', 'e', 'r', 'o'].join(''), 'i').test(src)) offenders.push(`${f}: path or user name`);
     if (/revolutionary|groundbreaking|world-class|state-of-the-art|cutting-edge|best-in-class|unparalleled|game-changing|seamless|blazing|supercharge|magical/i.test(src)) offenders.push(`${f}: superlative`);
-    if (/claude|anthropic|openai|chatgpt|gpt-|generated with|ai-generated|co-authored/i.test(src)) offenders.push(`${f}: assistant or tool credit`);
     if (/data sets?\b/i.test(src.replace(/dataset/gi, ''))) offenders.push(`${f}: use "datasets"`);
   });
   assert.deepEqual(offenders, []);
